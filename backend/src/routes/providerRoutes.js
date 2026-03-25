@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getMyProfile,
+  listServices,
   saveBasicDetails,
   saveProfessionalDetails,
   saveDocumentDetails,
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/me', getMyProfile);
+router.get('/services', listServices);
 router.get('/dashboard/summary', getDashboardSummary);
 router.get('/location/address', getLocationAddress);
 

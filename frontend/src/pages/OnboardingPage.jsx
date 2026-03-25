@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -8,30 +8,72 @@ import {
   Checkbox,
   CircularProgress,
   Container,
+  Divider,
+  Fade,
   FormControl,
   FormControlLabel,
   FormLabel,
+  Grid,
+  InputAdornment,
+  LinearProgress,
+  Paper,
   Radio,
   RadioGroup,
   Stack,
   Step,
   StepLabel,
   Stepper,
-  Switch,
   TextField,
   Typography,
 } from '@mui/material';
+import {
+  Person as PersonIcon,
+  Work as WorkIcon,
+  Description as DocumentIcon,
+  LocationOn as LocationIcon,
+  CheckCircle as CheckCircleIcon,
+  ArrowForward as ArrowForwardIcon,
+  ArrowBack as ArrowBackIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  School as SchoolIcon,
+  DirectionsCar as CarIcon,
+  MyLocation as MyLocationIcon,
+  CloudUpload as CloudUploadIcon,
+  AccountBalance as BankIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const steps = ['Basic Details', 'Professional Details', 'Document Upload', 'Location'];
+const steps = ['Basic Details', 'Professional Details', 'Documents & Bank', 'Location'];
 
-const expertiseOptions = [
-  { value: 'AC_REPAIR', label: 'AC Repair' },
-  { value: 'FRIDGE_REPAIR', label: 'Fridge Repair' },
-  { value: 'TV_REPAIR', label: 'TV Repair' },
+const stepIcons = [
+  { icon: PersonIcon, color: '#2563eb' },
+  { icon: WorkIcon, color: '#4338ca' },
+  { icon: DocumentIcon, color: '#0f766e' },
+  { icon: LocationIcon, color: '#0284c7' },
 ];
+
+const AADHAR_REGEX = /^\d{4}-\d{4}-\d{4}$/;
+const PAN_REGEX = /^[A-Z]{5}\d{4}[A-Z]$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const ACCOUNT_REGEX = /^\d{9,18}$/;
+
+const formatAadhar = (value) => {
+  const digits = value.replace(/\D/g, '').slice(0, 12);
+  const parts = digits.match(/.{1,4}/g) || [];
+  return parts.join('-');
+};
+
+const getFilePreview = (file, fallbackUrl) => {
+  if (file) {
+    return URL.createObjectURL(file);
+  }
+  return fallbackUrl || '';
+};
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -40,6 +82,8 @@ export default function OnboardingPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [serviceOptions, setServiceOptions] = useState([]);
 
   const [basic, setBasic] = useState({
     name: provider?.name || '',
@@ -55,6 +99,11 @@ export default function OnboardingPage() {
     emergencyContact: provider?.emergencyContact || '',
     referralName: provider?.referralName || '',
     hasVehicle: provider?.hasVehicle || false,
+    vehicleDetails: {
+      type: provider?.vehicleDetails?.type || '',
+      model: provider?.vehicleDetails?.model || '',
+      registrationNumber: provider?.vehicleDetails?.registrationNumber || '',
+    },
   });
 
   const [documents, setDocuments] = useState({
@@ -63,34 +112,108 @@ export default function OnboardingPage() {
     aadharFront: null,
     aadharBack: null,
     panImage: null,
-    chequeImage: null,
+    aadharFrontUrl: provider?.documents?.aadharFrontUrl || '',
+    aadharBackUrl: provider?.documents?.aadharBackUrl || '',
+    panUrl: provider?.documents?.panUrl || '',
+    accountHolderName: provider?.bankDetails?.accountHolderName || '',
+    bankName: provider?.bankDetails?.bankName || '',
+    accountNumber: provider?.bankDetails?.accountNumber || '',
+    ifscCode: provider?.bankDetails?.ifscCode || '',
+    branchName: provider?.bankDetails?.branchName || '',
   });
 
   const [locationState, setLocationState] = useState({
     latitude: provider?.location?.latitude || '',
     longitude: provider?.location?.longitude || '',
+    addressText: '',
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchServices = async () => {
+      setServicesLoading(true);
+      try {
+        const { data } = await api.get('/providers/services');
+        if (mounted) {
+          const options = (data.services || []).map((service) => ({
+            value: service.name,
+            label: service.name,
+          }));
+          setServiceOptions(options);
+        }
+      } catch (_err) {
+        if (mounted) {
+          setError('Unable to fetch services right now. Please try again.');
+        }
+      } finally {
+        if (mounted) {
+          setServicesLoading(false);
+        }
+      }
+    };
+
+    fetchServices();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const canContinue = useMemo(() => {
     if (activeStep === 0) {
-      return basic.name && basic.email && basic.dob && basic.gender;
-    }
-    if (activeStep === 1) {
       return (
+        basic.name.trim() &&
+        EMAIL_REGEX.test(basic.email.trim()) &&
+        basic.dob &&
+        basic.gender
+      );
+    }
+
+    if (activeStep === 1) {
+      const hasRequiredProfessionalFields =
         professional.expertise.length > 0 &&
         professional.experience &&
         professional.maritalStatus &&
-        /^[6-9]\d{9}$/.test(professional.emergencyContact)
+        PHONE_REGEX.test(professional.emergencyContact) &&
+        professional.referralName.trim();
+
+      if (!hasRequiredProfessionalFields) {
+        return false;
+      }
+
+      if (!professional.hasVehicle) {
+        return true;
+      }
+
+      return (
+        professional.vehicleDetails.type.trim() &&
+        professional.vehicleDetails.model.trim() &&
+        professional.vehicleDetails.registrationNumber.trim()
       );
     }
+
     if (activeStep === 2) {
-      return documents.aadharNumber && documents.panNumber;
+      return (
+        AADHAR_REGEX.test(documents.aadharNumber) &&
+        PAN_REGEX.test(documents.panNumber) &&
+        documents.accountHolderName.trim() &&
+        documents.bankName.trim() &&
+        ACCOUNT_REGEX.test(documents.accountNumber) &&
+        IFSC_REGEX.test(documents.ifscCode.trim().toUpperCase()) &&
+        documents.branchName.trim() &&
+        (documents.aadharFront || documents.aadharFrontUrl) &&
+        (documents.aadharBack || documents.aadharBackUrl) &&
+        (documents.panImage || documents.panUrl)
+      );
     }
+
     if (activeStep === 3) {
       return locationState.latitude !== '' && locationState.longitude !== '';
     }
+
     return false;
-  }, [activeStep, basic, professional, documents, locationState]);
+  }, [activeStep, basic, documents, locationState, professional]);
 
   const saveCurrentStep = async () => {
     setError('');
@@ -98,28 +221,49 @@ export default function OnboardingPage() {
 
     try {
       if (activeStep === 0) {
-        await api.put('/providers/onboarding/basic', basic);
+        await api.put('/providers/onboarding/basic', {
+          ...basic,
+          email: basic.email.trim(),
+        });
       }
 
       if (activeStep === 1) {
-        await api.put('/providers/onboarding/professional', professional);
+        await api.put('/providers/onboarding/professional', {
+          ...professional,
+          emergencyContact: professional.emergencyContact.trim(),
+          referralName: professional.referralName.trim(),
+          vehicleDetails: {
+            type: professional.vehicleDetails.type.trim(),
+            model: professional.vehicleDetails.model.trim(),
+            registrationNumber: professional.vehicleDetails.registrationNumber.trim().toUpperCase(),
+          },
+        });
       }
 
       if (activeStep === 2) {
         const formData = new FormData();
         formData.append('aadharNumber', documents.aadharNumber);
-        formData.append('panNumber', documents.panNumber);
+        formData.append('panNumber', documents.panNumber.trim().toUpperCase());
+        formData.append('accountHolderName', documents.accountHolderName.trim());
+        formData.append('bankName', documents.bankName.trim());
+        formData.append('accountNumber', documents.accountNumber.trim());
+        formData.append('ifscCode', documents.ifscCode.trim().toUpperCase());
+        formData.append('branchName', documents.branchName.trim());
+
         if (documents.aadharFront) formData.append('aadharFront', documents.aadharFront);
         if (documents.aadharBack) formData.append('aadharBack', documents.aadharBack);
         if (documents.panImage) formData.append('panImage', documents.panImage);
-        if (documents.chequeImage) formData.append('chequeImage', documents.chequeImage);
+
         await api.put('/providers/onboarding/documents', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
 
       if (activeStep === 3) {
-        await api.put('/providers/onboarding/location', locationState);
+        await api.put('/providers/onboarding/location', {
+          latitude: locationState.latitude,
+          longitude: locationState.longitude,
+        });
       }
 
       await refreshProfile();
@@ -146,12 +290,29 @@ export default function OnboardingPage() {
     setLoading(true);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocationState({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLoading(false);
+      async (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        try {
+          const { data } = await api.get('/providers/location/address', {
+            params: { latitude, longitude },
+          });
+
+          setLocationState({
+            latitude,
+            longitude,
+            addressText: data.address || 'Address not available',
+          });
+        } catch (_err) {
+          setLocationState({
+            latitude,
+            longitude,
+            addressText: 'Address not available',
+          });
+        } finally {
+          setLoading(false);
+        }
       },
       () => {
         setError('Unable to fetch location. Please allow location permission.');
@@ -160,144 +321,623 @@ export default function OnboardingPage() {
     );
   };
 
+  const updateDocumentImage = (key, file, previewKey) => {
+    setDocuments((prev) => ({
+      ...prev,
+      [key]: file,
+      [previewKey]: file ? getFilePreview(file, '') : prev[previewKey],
+    }));
+  };
+
+  const StepIcon = stepIcons[activeStep].icon;
+  const stepColor = stepIcons[activeStep].color;
+
   return (
-    <Box sx={{ minHeight: '100vh', py: 4, bgcolor: '#f8f9fb' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        py: 4,
+        background: '#f8f9fb',
+      }}
+    >
       <Container maxWidth="md">
-        <Card sx={{ borderRadius: 4 }}>
-          <CardContent sx={{ p: 4 }}>
-            <Stack spacing={3}>
-              <Typography variant="h4" fontWeight={700}>
-                Complete Your Profile
-              </Typography>
-              <Stepper activeStep={activeStep} alternativeLabel>
-                {steps.map((label) => (
-                  <Step key={label}>
-                    <StepLabel>{label}</StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
+        <Fade in timeout={600}>
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 20px 60px rgba(15, 23, 42, 0.08)',
+            }}
+          >
+            <CardContent sx={{ p: 4 }}>
+              <Stack spacing={3}>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                    <Box
+                      sx={{
+                        p: 1,
+                        borderRadius: 2,
+                        background: `${stepColor}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <StepIcon sx={{ color: stepColor, fontSize: 28 }} />
+                    </Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                      Complete Your Profile
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 9 }}>
+                    Step {activeStep + 1} of {steps.length}: {steps[activeStep]}
+                  </Typography>
+                </Box>
 
-              {error ? <Alert severity="error">{error}</Alert> : null}
+                <LinearProgress
+                  variant="determinate"
+                  value={((activeStep + 1) / steps.length) * 100}
+                  sx={{
+                    height: 6,
+                    borderRadius: 3,
+                    background: '#e5e7eb',
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 3,
+                      background: `linear-gradient(90deg, ${stepColor}, ${stepColor}99)`,
+                    },
+                  }}
+                />
 
-              {activeStep === 0 ? (
-                <Stack spacing={2}>
-                  <TextField label="Mobile Number" value={provider?.mobile || ''} disabled fullWidth />
-                  <TextField label="Name" value={basic.name} onChange={(e) => setBasic({ ...basic, name: e.target.value })} fullWidth />
-                  <TextField label="Email" type="email" value={basic.email} onChange={(e) => setBasic({ ...basic, email: e.target.value })} fullWidth />
-                  <TextField label="Date of Birth" type="date" value={basic.dob} onChange={(e) => setBasic({ ...basic, dob: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
-                  <FormControl>
-                    <FormLabel>Gender</FormLabel>
-                    <RadioGroup row value={basic.gender} onChange={(e) => setBasic({ ...basic, gender: e.target.value })}>
-                      <FormControlLabel value="MALE" control={<Radio />} label="Male" />
-                      <FormControlLabel value="FEMALE" control={<Radio />} label="Female" />
-                      <FormControlLabel value="OTHER" control={<Radio />} label="Other" />
-                    </RadioGroup>
-                  </FormControl>
-                </Stack>
-              ) : null}
+                <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 1 }}>
+                  {steps.map((label) => (
+                    <Step key={label}>
+                      <StepLabel>{label}</StepLabel>
+                    </Step>
+                  ))}
+                </Stepper>
 
-              {activeStep === 1 ? (
-                <Stack spacing={2}>
-                  <FormControl>
-                    <FormLabel>Expertise</FormLabel>
-                    <Stack direction="row" spacing={2}>
-                      {expertiseOptions.map((option) => (
-                        <FormControlLabel
-                          key={option.value}
-                          control={
-                            <Checkbox
-                              checked={professional.expertise.includes(option.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setProfessional((prev) => ({ ...prev, expertise: [...prev.expertise, option.value] }));
-                                } else {
-                                  setProfessional((prev) => ({
-                                    ...prev,
-                                    expertise: prev.expertise.filter((item) => item !== option.value),
-                                  }));
-                                }
-                              }}
-                            />
-                          }
-                          label={option.label}
+                <Divider />
+
+                {error && (
+                  <Fade in={!!error}>
+                    <Alert
+                      severity="error"
+                      sx={{
+                        borderRadius: 2,
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {error}
+                      </Typography>
+                    </Alert>
+                  </Fade>
+                )}
+
+                {activeStep === 0 && (
+                  <Fade in={activeStep === 0}>
+                    <Stack spacing={2.5}>
+                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
+                        <TextField
+                          label="Mobile Number"
+                          value={provider?.mobile || ''}
+                          disabled
+                          fullWidth
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <PhoneIcon sx={{ color: stepColor, mr: 1 }} />
+                              </InputAdornment>
+                            ),
+                          }}
                         />
-                      ))}
+                      </Paper>
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Full Name"
+                        value={basic.name}
+                        onChange={(e) => setBasic({ ...basic, name: e.target.value })}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon sx={{ color: stepColor, mr: 1 }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Email Address"
+                        type="email"
+                        error={basic.email.length > 0 && !EMAIL_REGEX.test(basic.email.trim())}
+                        helperText={basic.email.length > 0 && !EMAIL_REGEX.test(basic.email.trim()) ? 'Enter a valid email address' : ''}
+                        value={basic.email}
+                        onChange={(e) => setBasic({ ...basic, email: e.target.value })}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <EmailIcon sx={{ color: stepColor, mr: 1 }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Date of Birth"
+                        type="date"
+                        value={basic.dob}
+                        onChange={(e) => setBasic({ ...basic, dob: e.target.value })}
+                        InputLabelProps={{ shrink: true }}
+                      />
+
+                      <FormControl required>
+                        <FormLabel sx={{ fontWeight: 700, mb: 1.5, color: '#1f2937' }}>Gender</FormLabel>
+                        <RadioGroup
+                          row
+                          value={basic.gender}
+                          onChange={(e) => setBasic({ ...basic, gender: e.target.value })}
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel value="MALE" control={<Radio />} label="Male" />
+                          <FormControlLabel value="FEMALE" control={<Radio />} label="Female" />
+                          <FormControlLabel value="OTHER" control={<Radio />} label="Other" />
+                        </RadioGroup>
+                      </FormControl>
                     </Stack>
-                  </FormControl>
+                  </Fade>
+                )}
 
-                  <FormControl>
-                    <FormLabel>Experience</FormLabel>
-                    <RadioGroup value={professional.experience} onChange={(e) => setProfessional({ ...professional, experience: e.target.value })}>
-                      <FormControlLabel value="MORE_THAN_1_YEAR" control={<Radio />} label="More than 1 Year" />
-                      <FormControlLabel value="SIX_TO_TWELVE_MONTHS" control={<Radio />} label="6–12 Months" />
-                      <FormControlLabel value="LESS_THAN_6_MONTHS" control={<Radio />} label="Less than 6 Months" />
-                      <FormControlLabel value="NO_EXPERIENCE" control={<Radio />} label="No Experience" />
-                    </RadioGroup>
-                  </FormControl>
+                {activeStep === 1 && (
+                  <Fade in={activeStep === 1}>
+                    <Stack spacing={2.5}>
+                      <FormControl required>
+                        <FormLabel sx={{ fontWeight: 700, mb: 1.5, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <SchoolIcon sx={{ fontSize: 18 }} /> Areas of Expertise
+                        </FormLabel>
 
-                  <FormControl>
-                    <FormLabel>Marital Status</FormLabel>
-                    <RadioGroup row value={professional.maritalStatus} onChange={(e) => setProfessional({ ...professional, maritalStatus: e.target.value })}>
-                      <FormControlLabel value="MARRIED" control={<Radio />} label="Married" />
-                      <FormControlLabel value="UNMARRIED" control={<Radio />} label="Unmarried" />
-                    </RadioGroup>
-                  </FormControl>
+                        {servicesLoading ? (
+                          <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
+                            <CircularProgress size={24} />
+                          </Box>
+                        ) : (
+                          <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
+                            {serviceOptions.map((option) => (
+                              <Paper
+                                key={option.value}
+                                elevation={0}
+                                sx={{
+                                  p: 1.2,
+                                  border: '2px solid #e5e7eb',
+                                  borderRadius: 2,
+                                  cursor: 'pointer',
+                                  ...(professional.expertise.includes(option.value) && {
+                                    borderColor: stepColor,
+                                    background: `${stepColor}10`,
+                                  }),
+                                }}
+                                onClick={() => {
+                                  if (professional.expertise.includes(option.value)) {
+                                    setProfessional((prev) => ({
+                                      ...prev,
+                                      expertise: prev.expertise.filter((item) => item !== option.value),
+                                    }));
+                                  } else {
+                                    setProfessional((prev) => ({ ...prev, expertise: [...prev.expertise, option.value] }));
+                                  }
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Checkbox checked={professional.expertise.includes(option.value)} onChange={() => {}} sx={{ p: 0 }} />
+                                  <Typography sx={{ fontWeight: 600 }}>{option.label}</Typography>
+                                </Box>
+                              </Paper>
+                            ))}
+                          </Stack>
+                        )}
+                      </FormControl>
 
-                  <TextField label="Emergency Contact Number" value={professional.emergencyContact} onChange={(e) => setProfessional({ ...professional, emergencyContact: e.target.value.replace(/\D/g, '').slice(0, 10) })} fullWidth />
-                  <TextField label="Referral Name" value={professional.referralName} onChange={(e) => setProfessional({ ...professional, referralName: e.target.value })} fullWidth />
-                  <FormControlLabel
-                    control={<Switch checked={professional.hasVehicle} onChange={(e) => setProfessional({ ...professional, hasVehicle: e.target.checked })} />}
-                    label="Do You Have Vehicle?"
-                  />
+                      <FormControl required>
+                        <FormLabel sx={{ fontWeight: 700, mb: 1.5, color: '#1f2937' }}>Work Experience</FormLabel>
+                        <RadioGroup
+                          value={professional.experience}
+                          onChange={(e) => setProfessional({ ...professional, experience: e.target.value })}
+                        >
+                          <FormControlLabel value="MORE_THAN_1_YEAR" control={<Radio />} label="More than 1 Year" />
+                          <FormControlLabel value="SIX_TO_TWELVE_MONTHS" control={<Radio />} label="6–12 Months" />
+                          <FormControlLabel value="LESS_THAN_6_MONTHS" control={<Radio />} label="Less than 6 Months" />
+                          <FormControlLabel value="NO_EXPERIENCE" control={<Radio />} label="No Experience" />
+                        </RadioGroup>
+                      </FormControl>
+
+                      <FormControl required>
+                        <FormLabel sx={{ fontWeight: 700, mb: 1.5, color: '#1f2937' }}>Marital Status</FormLabel>
+                        <RadioGroup
+                          row
+                          value={professional.maritalStatus}
+                          onChange={(e) => setProfessional({ ...professional, maritalStatus: e.target.value })}
+                        >
+                          <FormControlLabel value="MARRIED" control={<Radio />} label="Married" />
+                          <FormControlLabel value="UNMARRIED" control={<Radio />} label="Unmarried" />
+                        </RadioGroup>
+                      </FormControl>
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Emergency Contact Number"
+                        value={professional.emergencyContact}
+                        error={professional.emergencyContact.length > 0 && !PHONE_REGEX.test(professional.emergencyContact)}
+                        helperText={professional.emergencyContact.length > 0 && !PHONE_REGEX.test(professional.emergencyContact) ? 'Enter valid 10-digit number starting with 6-9' : ''}
+                        onChange={(e) =>
+                          setProfessional({
+                            ...professional,
+                            emergencyContact: e.target.value.replace(/\D/g, '').slice(0, 10),
+                          })
+                        }
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PhoneIcon sx={{ color: stepColor, mr: 1 }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Referral Name"
+                        value={professional.referralName}
+                        onChange={(e) => setProfessional({ ...professional, referralName: e.target.value })}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon sx={{ color: stepColor, mr: 1 }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+
+                      <FormControl required>
+                        <FormLabel sx={{ fontWeight: 700, mb: 1.5, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                          <CarIcon sx={{ fontSize: 18 }} /> Do you have your own vehicle?
+                        </FormLabel>
+                        <RadioGroup
+                          row
+                          value={professional.hasVehicle ? 'YES' : 'NO'}
+                          onChange={(e) => {
+                            const hasVehicle = e.target.value === 'YES';
+                            setProfessional((prev) => ({
+                              ...prev,
+                              hasVehicle,
+                              vehicleDetails: hasVehicle
+                                ? prev.vehicleDetails
+                                : { type: '', model: '', registrationNumber: '' },
+                            }));
+                          }}
+                        >
+                          <FormControlLabel value="YES" control={<Radio />} label="Yes" />
+                          <FormControlLabel value="NO" control={<Radio />} label="No" />
+                        </RadioGroup>
+                      </FormControl>
+
+                      {professional.hasVehicle && (
+                        <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Stack spacing={2}>
+                            <Typography sx={{ fontWeight: 700, color: '#1f2937' }}>Vehicle Details</Typography>
+                            <TextField
+                              required
+                              label="Vehicle Type"
+                              value={professional.vehicleDetails.type}
+                              onChange={(e) =>
+                                setProfessional((prev) => ({
+                                  ...prev,
+                                  vehicleDetails: { ...prev.vehicleDetails, type: e.target.value },
+                                }))
+                              }
+                            />
+                            <TextField
+                              required
+                              label="Vehicle Model"
+                              value={professional.vehicleDetails.model}
+                              onChange={(e) =>
+                                setProfessional((prev) => ({
+                                  ...prev,
+                                  vehicleDetails: { ...prev.vehicleDetails, model: e.target.value },
+                                }))
+                              }
+                            />
+                            <TextField
+                              required
+                              label="Vehicle Registration Number"
+                              value={professional.vehicleDetails.registrationNumber}
+                              onChange={(e) =>
+                                setProfessional((prev) => ({
+                                  ...prev,
+                                  vehicleDetails: {
+                                    ...prev.vehicleDetails,
+                                    registrationNumber: e.target.value.toUpperCase(),
+                                  },
+                                }))
+                              }
+                            />
+                          </Stack>
+                        </Paper>
+                      )}
+                    </Stack>
+                  </Fade>
+                )}
+
+                {activeStep === 2 && (
+                  <Fade in={activeStep === 2}>
+                    <Stack spacing={2.5}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <DocumentIcon sx={{ color: stepColor }} /> Aadhaar & PAN
+                      </Typography>
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Aadhaar Number"
+                        value={documents.aadharNumber}
+                        error={documents.aadharNumber.length > 0 && !AADHAR_REGEX.test(documents.aadharNumber)}
+                        helperText={documents.aadharNumber.length > 0 && !AADHAR_REGEX.test(documents.aadharNumber) ? 'Use XXXX-XXXX-XXXX format' : 'Format: XXXX-XXXX-XXXX'}
+                        onChange={(e) => setDocuments({ ...documents, aadharNumber: formatAadhar(e.target.value) })}
+                      />
+
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                            Upload Aadhaar Front
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/*"
+                              onChange={(e) => updateDocumentImage('aadharFront', e.target.files?.[0] || null, 'aadharFrontUrl')}
+                            />
+                          </Button>
+                          {documents.aadharFrontUrl && (
+                            <Box
+                              component="img"
+                              src={documents.aadharFrontUrl}
+                              alt="Aadhaar Front Preview"
+                              sx={{ mt: 1.2, width: '100%', height: 150, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                            />
+                          )}
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                            Upload Aadhaar Back
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/*"
+                              onChange={(e) => updateDocumentImage('aadharBack', e.target.files?.[0] || null, 'aadharBackUrl')}
+                            />
+                          </Button>
+                          {documents.aadharBackUrl && (
+                            <Box
+                              component="img"
+                              src={documents.aadharBackUrl}
+                              alt="Aadhaar Back Preview"
+                              sx={{ mt: 1.2, width: '100%', height: 150, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                            />
+                          )}
+                        </Grid>
+                      </Grid>
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="PAN Number"
+                        value={documents.panNumber}
+                        error={documents.panNumber.length > 0 && !PAN_REGEX.test(documents.panNumber)}
+                        helperText={documents.panNumber.length > 0 && !PAN_REGEX.test(documents.panNumber) ? 'Enter valid PAN (e.g. ABCDE1234F)' : ''}
+                        onChange={(e) => setDocuments({ ...documents, panNumber: e.target.value.toUpperCase().slice(0, 10) })}
+                      />
+
+                      <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                        Upload PAN Image
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={(e) => updateDocumentImage('panImage', e.target.files?.[0] || null, 'panUrl')}
+                        />
+                      </Button>
+                      {documents.panUrl && (
+                        <Box
+                          component="img"
+                          src={documents.panUrl}
+                          alt="PAN Preview"
+                          sx={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                        />
+                      )}
+
+                      <Divider />
+
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <BankIcon sx={{ color: stepColor }} /> Bank Details
+                      </Typography>
+
+                      <TextField
+                        fullWidth
+                        required
+                        label="Account Holder Name"
+                        value={documents.accountHolderName}
+                        onChange={(e) => setDocuments({ ...documents, accountHolderName: e.target.value })}
+                      />
+                      <TextField
+                        fullWidth
+                        required
+                        label="Bank Name"
+                        value={documents.bankName}
+                        onChange={(e) => setDocuments({ ...documents, bankName: e.target.value })}
+                      />
+                      <TextField
+                        fullWidth
+                        required
+                        label="Account Number"
+                        value={documents.accountNumber}
+                        error={documents.accountNumber.length > 0 && !ACCOUNT_REGEX.test(documents.accountNumber)}
+                        helperText={documents.accountNumber.length > 0 && !ACCOUNT_REGEX.test(documents.accountNumber) ? 'Enter valid account number (9-18 digits)' : ''}
+                        onChange={(e) => setDocuments({ ...documents, accountNumber: e.target.value.replace(/\D/g, '').slice(0, 18) })}
+                      />
+                      <TextField
+                        fullWidth
+                        required
+                        label="IFSC Code"
+                        value={documents.ifscCode}
+                        error={documents.ifscCode.length > 0 && !IFSC_REGEX.test(documents.ifscCode.toUpperCase())}
+                        helperText={documents.ifscCode.length > 0 && !IFSC_REGEX.test(documents.ifscCode.toUpperCase()) ? 'Enter valid IFSC code' : ''}
+                        onChange={(e) => setDocuments({ ...documents, ifscCode: e.target.value.toUpperCase().slice(0, 11) })}
+                      />
+                      <TextField
+                        fullWidth
+                        required
+                        label="Branch Name"
+                        value={documents.branchName}
+                        onChange={(e) => setDocuments({ ...documents, branchName: e.target.value })}
+                      />
+                    </Stack>
+                  </Fade>
+                )}
+
+                {activeStep === 3 && (
+                  <Fade in={activeStep === 3}>
+                    <Stack spacing={2.5}>
+                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#f0f4ff', border: '1px solid #dbeafe', borderRadius: 2.5 }}>
+                        <Typography variant="body2" sx={{ color: '#1d4ed8', mb: 1, fontWeight: 600 }}>
+                          Enable location permission to auto-fill coordinates and full address.
+                        </Typography>
+                      </Paper>
+
+                      <Button
+                        variant="contained"
+                        startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <MyLocationIcon />}
+                        onClick={getLiveLocation}
+                        disabled={loading}
+                        size="large"
+                        sx={{
+                          py: 1.5,
+                          fontWeight: 700,
+                          borderRadius: 2.5,
+                          textTransform: 'none',
+                          background: `linear-gradient(135deg, ${stepColor}, ${stepColor}99)`,
+                        }}
+                      >
+                        {loading ? 'Fetching Location...' : 'Fetch My Location'}
+                      </Button>
+
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Latitude"
+                            value={locationState.latitude}
+                            InputProps={{ readOnly: true }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Longitude"
+                            value={locationState.longitude}
+                            InputProps={{ readOnly: true }}
+                          />
+                        </Grid>
+                      </Grid>
+
+                      <TextField
+                        fullWidth
+                        label="Address (Text Format)"
+                        value={locationState.addressText}
+                        InputProps={{ readOnly: true }}
+                        multiline
+                        minRows={2}
+                      />
+
+                      {locationState.latitude && locationState.longitude && (
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: '#ecfdf5', border: '1px solid #86efac', borderRadius: 2.5 }}>
+                          <Typography sx={{ color: '#065f46', fontWeight: 600 }}>
+                            Location captured in both coordinate and text format.
+                          </Typography>
+                        </Paper>
+                      )}
+                    </Stack>
+                  </Fade>
+                )}
+
+                <Divider />
+
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                  <Button
+                    variant="text"
+                    startIcon={<ArrowBackIcon />}
+                    disabled={activeStep === 0 || loading}
+                    onClick={() => setActiveStep((prev) => prev - 1)}
+                    sx={{
+                      px: 3,
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      fontSize: '1em',
+                      color: stepColor,
+                      '&:hover': { background: `${stepColor}10` },
+                    }}
+                  >
+                    Back
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    endIcon={
+                      loading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : activeStep === steps.length - 1 ? (
+                        <CheckCircleIcon />
+                      ) : (
+                        <ArrowForwardIcon />
+                      )
+                    }
+                    disabled={!canContinue || loading}
+                    onClick={saveCurrentStep}
+                    size="large"
+                    sx={{
+                      px: 4,
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      fontSize: '1.05em',
+                      borderRadius: 2.5,
+                      background: `linear-gradient(135deg, ${stepColor}, ${stepColor}99)`,
+                      boxShadow: `0 10px 30px ${stepColor}30`,
+                      '&:disabled': {
+                        opacity: 0.5,
+                      },
+                    }}
+                  >
+                    {loading
+                      ? activeStep === steps.length - 1
+                        ? 'Submitting...'
+                        : 'Saving...'
+                      : activeStep === steps.length - 1
+                      ? 'Complete Profile'
+                      : 'Save & Continue'}
+                  </Button>
                 </Stack>
-              ) : null}
-
-              {activeStep === 2 ? (
-                <Stack spacing={2}>
-                  <TextField label="Aadhaar Number" value={documents.aadharNumber} onChange={(e) => setDocuments({ ...documents, aadharNumber: e.target.value })} fullWidth />
-                  <Button variant="outlined" component="label">
-                    Upload Aadhaar Front
-                    <input type="file" hidden accept="image/*" onChange={(e) => setDocuments({ ...documents, aadharFront: e.target.files?.[0] || null })} />
-                  </Button>
-                  <Button variant="outlined" component="label">
-                    Upload Aadhaar Back
-                    <input type="file" hidden accept="image/*" onChange={(e) => setDocuments({ ...documents, aadharBack: e.target.files?.[0] || null })} />
-                  </Button>
-
-                  <TextField label="PAN Number" value={documents.panNumber} onChange={(e) => setDocuments({ ...documents, panNumber: e.target.value.toUpperCase() })} fullWidth />
-                  <Button variant="outlined" component="label">
-                    Upload PAN Image
-                    <input type="file" hidden accept="image/*" onChange={(e) => setDocuments({ ...documents, panImage: e.target.files?.[0] || null })} />
-                  </Button>
-
-                  <Button variant="outlined" component="label">
-                    Upload Cancelled Cheque
-                    <input type="file" hidden accept="image/*" onChange={(e) => setDocuments({ ...documents, chequeImage: e.target.files?.[0] || null })} />
-                  </Button>
-                </Stack>
-              ) : null}
-
-              {activeStep === 3 ? (
-                <Stack spacing={2}>
-                  <Button variant="outlined" onClick={getLiveLocation} disabled={loading}>
-                    Fetch Live Location
-                  </Button>
-                  <TextField label="Latitude" value={locationState.latitude} fullWidth InputProps={{ readOnly: true }} />
-                  <TextField label="Longitude" value={locationState.longitude} fullWidth InputProps={{ readOnly: true }} />
-                </Stack>
-              ) : null}
-
-              <Stack direction="row" justifyContent="space-between">
-                <Button disabled={activeStep === 0 || loading} onClick={() => setActiveStep((prev) => prev - 1)}>
-                  Back
-                </Button>
-                <Button variant="contained" disabled={!canContinue || loading} onClick={saveCurrentStep}>
-                  {loading ? <CircularProgress size={22} color="inherit" /> : activeStep === steps.length - 1 ? 'Submit Profile' : 'Save & Continue'}
-                </Button>
               </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Fade>
       </Container>
     </Box>
   );

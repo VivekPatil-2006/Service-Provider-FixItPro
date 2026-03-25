@@ -21,7 +21,6 @@ const uploadDocuments = upload.fields([
   { name: 'aadharFront', maxCount: 1 },
   { name: 'aadharBack', maxCount: 1 },
   { name: 'panImage', maxCount: 1 },
-  { name: 'chequeImage', maxCount: 1 },
 ]);
 
 module.exports = { uploadDocuments };

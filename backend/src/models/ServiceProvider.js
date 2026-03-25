@@ -36,17 +36,12 @@ const serviceProviderSchema = new mongoose.Schema(
       default: '',
     },
     expertise: {
-      type: [
-        {
-          type: String,
-          enum: ['AC_REPAIR', 'FRIDGE_REPAIR', 'TV_REPAIR'],
-        },
-      ],
+      type: [String],
       default: [],
     },
     experience: {
       type: String,
-      enum: ['MORE THAN 1 YEAR', 'SIX - TWELVE_MONTHS', 'LESS THAN 6 MONTHS', 'NO EXPERIENCE', ''],
+      enum: ['MORE_THAN_1_YEAR', 'SIX_TO_TWELVE_MONTHS', 'LESS_THAN_6_MONTHS', 'NO_EXPERIENCE', ''],
       default: '',
     },
     maritalStatus: {
@@ -57,6 +52,14 @@ const serviceProviderSchema = new mongoose.Schema(
     emergencyContact: { type: String, default: '' },
     referralName: { type: String, default: '' },
     hasVehicle: { type: Boolean, default: false },
+    vehicleDetails: {
+      type: {
+        type: String,
+        default: '',
+      },
+      model: { type: String, default: '' },
+      registrationNumber: { type: String, default: '' },
+    },
     status: {
       type: String,
       enum: ['INACTIVE', 'ACTIVE'],
@@ -74,6 +77,13 @@ const serviceProviderSchema = new mongoose.Schema(
       panNumber: { type: String, default: '' },
       panUrl: { type: String, default: '' },
       chequeUrl: { type: String, default: '' },
+    },
+    bankDetails: {
+      accountHolderName: { type: String, default: '' },
+      bankName: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      ifscCode: { type: String, default: '' },
+      branchName: { type: String, default: '' },
     },
     skills: {
       type: [String],
