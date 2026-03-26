@@ -211,41 +211,38 @@ export default function DashboardPage() {
   );
 
   return (
-    <Stack spacing={3}>
-      <Box sx={{ pb: 1.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>📊 Service Provider Analytics</Typography>
-        <Typography variant="body2" color="text.secondary">Operational intelligence with sample data</Typography>
+    <Stack spacing={1.5}>
+      <Box sx={{ pb: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.25 }}>📊 Service Provider Analytics</Typography>
+        <Typography variant="caption" color="text.secondary">Operational intelligence with sample data</Typography>
       </Box>
 
       {/* SECTION 1: KEY PERFORMANCE INDICATORS */}
       <Box>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Total Bookings" value={totalRequests} icon={<AssignmentIcon fontSize="small" />} /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Completed Jobs" value={completedJobs} icon={<CheckCircleIcon fontSize="small" />} color="#166534" /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Cancelled Jobs" value={cancelledJobs} icon={<CancelIcon fontSize="small" />} color="#b91c1c" /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Earnings (Total)" value={formatINR(totalEarnings)} icon={<CurrencyRupeeIcon fontSize="small" />} color="#0c4a6e" /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Today's Earnings" value={formatINR(todayEarnings)} icon={<TrendingUpIcon fontSize="small" />} /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Pending Jobs" value={pendingJobs} icon={<PendingActionsIcon fontSize="small" />} color="#92400e" /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Acceptance Rate" value={formatPct(acceptanceRate)} icon={<PercentIcon fontSize="small" />} subtitle="Accepted / Total Requests" /></Grid>
-          <Grid item xs={12} sm={6} md={3}><KpiCard title="Completion Rate" value={formatPct(completionRate)} icon={<BoltIcon fontSize="small" />} subtitle="Completed / Accepted" /></Grid>
+        <Grid container spacing={1.5}>
+          <Grid item xs={6} sm={4} md={2.4}><KpiCard title="Total Bookings" value={totalRequests} icon={<AssignmentIcon fontSize="small" />} /></Grid>
+          <Grid item xs={6} sm={4} md={2.4}><KpiCard title="Completed Jobs" value={completedJobs} icon={<CheckCircleIcon fontSize="small" />} color="#166534" /></Grid>
+          <Grid item xs={6} sm={4} md={2.4}><KpiCard title="Cancelled Jobs" value={cancelledJobs} icon={<CancelIcon fontSize="small" />} color="#b91c1c" /></Grid>
+          <Grid item xs={6} sm={4} md={2.4}><KpiCard title="Earnings (Total)" value={formatINR(totalEarnings)} icon={<CurrencyRupeeIcon fontSize="small" />} color="#0c4a6e" /></Grid>
+          <Grid item xs={6} sm={4} md={2.4}><KpiCard title="Today's Earnings" value={formatINR(todayEarnings)} icon={<TrendingUpIcon fontSize="small" />} /></Grid>
         </Grid>
       </Box>
-      <Divider sx={{ my: 1 }} />
+      <Divider sx={{ my: 0.5 }} />
 
       {/* SECTION 2: EARNINGS & RATINGS */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={8}>
+      <Grid container spacing={1.5}>
+        <Grid item xs={12} md={7}>
           <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>💰 Earnings Analytics</Typography>
-              <Typography variant="caption" color="text.secondary">Daily, weekly, monthly, yearly earnings breakdown</Typography>
-              <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
-                <Grid item xs={6} md={3}><Chip label={`Daily: ${formatINR(dailyEarnings)}`} variant="outlined" size="small" /></Grid>
-                <Grid item xs={6} md={3}><Chip label={`Weekly: ${formatINR(weeklyEarnings)}`} variant="outlined" size="small" /></Grid>
-                <Grid item xs={6} md={3}><Chip label={`Monthly: ${formatINR(monthlyEarnings)}`} variant="outlined" size="small" /></Grid>
-                <Grid item xs={6} md={3}><Chip label={`Yearly: ${formatINR(yearlyEarnings)}`} variant="outlined" size="small" /></Grid>
-              </Grid>
-              <Box sx={{ height: 280 }}>
+            <CardContent sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.2 }}>💰 Earnings Analytics</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Daily, weekly, monthly, yearly breakdown</Typography>
+              <Stack direction="row" spacing={1} sx={{ mt: 1, mb: 1.5 }} flexWrap="wrap">
+                <Chip label={`Daily: ${formatINR(dailyEarnings)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Weekly: ${formatINR(weeklyEarnings)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Monthly: ${formatINR(monthlyEarnings)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Yearly: ${formatINR(yearlyEarnings)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+              </Stack>
+              <Box sx={{ height: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={earningsTimeline}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -257,27 +254,27 @@ export default function DashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
-              <Divider sx={{ my: 1.5 }} />
-              <Stack spacing={0.8}>
-                <Typography variant="body2" color="text.secondary">📈 Highest earning day: <strong>{highestEarningDay.day}</strong> ({formatINR(highestEarningDay.earnings)})</Typography>
-                <Typography variant="body2" color="text.secondary">📊 Average earning per day: <strong>{formatINR(avgEarningPerDay)}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">💵 Average earning per job: <strong>{formatINR(avgEarningPerJob)}</strong></Typography>
+              <Divider sx={{ my: 1 }} />
+              <Stack spacing={0.5} sx={{ fontSize: '0.85rem' }}>
+                <Typography variant="caption" color="text.secondary"><strong>{highestEarningDay.day}</strong> ({formatINR(highestEarningDay.earnings)})</Typography>
+                <Typography variant="caption" color="text.secondary">Avg/day: <strong>{formatINR(avgEarningPerDay)}</strong></Typography>
+                <Typography variant="caption" color="text.secondary">Avg/job: <strong>{formatINR(avgEarningPerJob)}</strong></Typography>
               </Stack>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={5}>
           <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>⭐ Ratings & Reviews</Typography>
-              <Typography variant="caption" color="text.secondary">Service quality snapshot</Typography>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ my: 1.5 }}>
-                <StarIcon sx={{ color: '#f59e0b', fontSize: 32 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800 }}>{avgRating}</Typography>
-                <Typography variant="body2" color="text.secondary">({totalReviews} reviews)</Typography>
+            <CardContent sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.2 }}>⭐ Ratings & Reviews</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Service quality snapshot</Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ my: 1 }}>
+                <StarIcon sx={{ color: '#f59e0b', fontSize: 24 }} />
+                <Typography variant="h5" sx={{ fontWeight: 800 }}>{avgRating}</Typography>
+                <Typography variant="caption" color="text.secondary">({totalReviews})</Typography>
               </Stack>
-              <Box sx={{ height: 220 }}>
+              <Box sx={{ height: 180 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={ratingDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={82} label>
@@ -289,28 +286,28 @@ export default function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>🔥 Most common feedback: <strong>Fast Service</strong></Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.8 }}>Most common: <strong>Fast Service</strong></Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
-      <Divider sx={{ my: 1 }} />
+      <Divider sx={{ my: 0.5 }} />
 
-      {/* SECTION 3: BOOKINGS & PERFORMANCE */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={7}>
+      {/* SECTION 3: BOOKINGS & SERVICES & LOCATIONS */}
+      <Grid container spacing={1.5}>
+        <Grid item xs={12} md={7}>
           <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>📋 Bookings Analytics</Typography>
-              <Typography variant="caption" color="text.secondary">Completed vs cancelled vs pending trend</Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 1.2, mb: 1.5 }} flexWrap="wrap">
-                <Chip label={`Total Requests: ${totalRequests}`} size="small" />
-                <Chip label={`Accepted: ${acceptedJobs}`} size="small" />
-                <Chip label={`Rejected: ${rejectedJobs}`} size="small" />
-                <Chip label={`Completed: ${completedJobs}`} size="small" />
-                <Chip label={`Cancelled: ${cancelledJobs}`} size="small" />
+            <CardContent sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.2 }}>📋 Bookings Analytics</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Completed vs cancelled vs pending trend</Typography>
+              <Stack direction="row" spacing={0.8} sx={{ mt: 1, mb: 1.5 }} flexWrap="wrap">
+                <Chip label={`Total: ${totalRequests}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Accepted: ${acceptedJobs}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Rejected: ${rejectedJobs}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Completed: ${completedJobs}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                <Chip label={`Cancelled: ${cancelledJobs}`} size="small" sx={{ fontSize: '0.7rem' }} />
               </Stack>
-              <Box sx={{ height: 290 }}>
+              <Box sx={{ height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bookingsStatusByDay}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -324,39 +321,66 @@ export default function DashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>📌 Peak booking day: <strong>{peakBookingDay.day}</strong> ({peakBookingDay.total} requests)</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>Peak: <strong>{peakBookingDay.day}</strong> ({peakBookingDay.total})</Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} lg={5}>
-          <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>⚡ Performance Analytics</Typography>
-              <Typography variant="caption" color="text.secondary">Efficiency and service speed metrics</Typography>
-              <Stack spacing={1.2} sx={{ mt: 1.5 }}>
-                <Chip icon={<AccessTimeIcon />} label={`Avg completion time: ${avgCompletionHours} hours`} variant="outlined" />
-                <Chip icon={<BoltIcon />} label={`Avg response time: ${responseMinutes} minutes`} variant="outlined" />
-                <Chip icon={<PercentIcon />} label={`On-time completion: ${formatPct(onTimeRate)}`} variant="outlined" />
-              </Stack>
-              <Divider sx={{ my: 1.5 }} />
-              <Typography variant="body2" color="text.secondary">🏆 You complete jobs faster than <strong>80%</strong> of other providers.</Typography>
-            </CardContent>
-          </Card>
+        <Grid item xs={12} md={5}>
+          <Grid container spacing={1.5} sx={{ height: '100%' }}>
+            <Grid item xs={12}>
+              <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.2 }}>🔧 Service-wise</Typography>
+                  <Table size="small" sx={{ mt: 0.5 }}>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>Service</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>Jobs</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>Earnings</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {serviceWiseRows.map((row) => (
+                        <TableRow key={row.service}>
+                          <TableCell sx={{ fontSize: '0.7rem', p: 0.5 }}>{row.service}</TableCell>
+                          <TableCell align="right" sx={{ fontSize: '0.7rem', p: 0.5 }}>{row.jobs}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>{formatINR(row.earnings)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Card sx={{ mt: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>📈 Growth Metrics</Typography>
-              <Typography variant="caption" color="text.secondary">Week-over-week progress</Typography>
-              <Stack spacing={1.2} sx={{ mt: 1.5 }}>
-                <Typography variant="body2" color="text.secondary">💹 Earnings growth: <strong style={{ color: '#16a34a', fontSize: '1.1em' }}>+{earningsGrowthPct}%</strong> from last week</Typography>
-                <Typography variant="body2" color="text.secondary">📊 Bookings growth: <strong style={{ color: '#16a34a', fontSize: '1.1em' }}>+{bookingGrowthPct}%</strong> from last week</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
+            <Grid item xs={12}>
+              <Card sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.2 }}>📍 Location Analytics</Typography>
+                  <Table size="small" sx={{ mt: 0.5 }}>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>Area</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem', p: 0.5 }}>Jobs</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {locationRows.map((row) => (
+                        <TableRow key={row.area}>
+                          <TableCell sx={{ fontSize: '0.7rem', p: 0.5 }}>{row.area}</TableCell>
+                          <TableCell align="right" sx={{ fontSize: '0.7rem', p: 0.5 }}>{row.jobs}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Grid>
       </Grid>
-      <Divider sx={{ my: 1 }} />
+      <Divider sx={{ my: 0.5 }} />
 
       {/* SECTION 4: SERVICES & LOCATIONS */}
       <Grid container spacing={2}>
@@ -515,27 +539,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card sx={{ mt: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.3 }}>📊 Weekly & Monthly Report</Typography>
-              <Typography variant="caption" color="text.secondary">Performance summary by period</Typography>
-              <Box sx={{ mt: 1.5 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.8, color: '#0f172a' }}>📅 Weekly Summary</Typography>
-                <Typography variant="body2" color="text.secondary">💰 Earnings: <strong>{formatINR(reportWeekly.totalEarnings)}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">✅ Jobs completed: <strong>{reportWeekly.jobsCompleted}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">⬆️ Best day: <strong>{reportWeekly.bestDay}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">⬇️ Weak day: <strong>{reportWeekly.weakDay}</strong></Typography>
-              </Box>
-              <Divider sx={{ my: 1.2 }} />
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.8, color: '#0f172a' }}>📈 Monthly Summary</Typography>
-                <Typography variant="body2" color="text.secondary">💰 Earnings: <strong>{formatINR(reportMonthly.totalEarnings)}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">✅ Jobs completed: <strong>{reportMonthly.jobsCompleted}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">⬆️ Best day: <strong>{reportMonthly.bestDay}</strong></Typography>
-                <Typography variant="body2" color="text.secondary">⬇️ Weak day: <strong>{reportMonthly.weakDay}</strong></Typography>
-              </Box>
-            </CardContent>
-          </Card>
+
         </Grid>
       </Grid>
     </Stack>

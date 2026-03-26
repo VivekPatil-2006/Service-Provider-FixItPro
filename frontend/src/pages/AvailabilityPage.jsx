@@ -5,14 +5,27 @@ import {
   Button,
   Card,
   CardContent,
-  Checkbox,
+  Divider,
   Grid,
   IconButton,
   Stack,
   TextField,
   Typography,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  LinearProgress,
+  alpha,
+  useTheme,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import ClockIcon from '@mui/icons-material/Schedule';
+import SaveIcon from '@mui/icons-material/Save';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,18 +39,123 @@ const days = [
   { key: 'SUN', label: 'Sun' },
 ];
 
+const calculateDuration = (start, end) => {
+  if (!start || !end) return '';
+  const [startH, startM] = start.split(':').map(Number);
+  const [endH, endM] = end.split(':').map(Number);
+  const diff = (endH * 60 + endM) - (startH * 60 + startM);
+  if (diff <= 0) return 'Invalid';
+  const hours = Math.floor(diff / 60);
+  const mins = diff % 60;
+  return `${hours}h ${mins}m`;
+};
+
+const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
+  const duration = calculateDuration(slot.start, slot.end);
+  const isValid = slot.start && slot.end && duration !== 'Invalid';
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 2.5,
+        border: `2px solid ${isValid ? alpha(theme.palette.success.main, 0.3) : alpha(theme.palette.divider, 0.5)}`,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: theme.shadows[4],
+          borderColor: theme.palette.primary.main,
+        },
+        bgcolor: isValid ? alpha(theme.palette.success.main, 0.05) : 'background.paper',
+      }}
+    >
+      <CardContent sx={{ p: 1.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+          <AccessTimeIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Slot {index + 1}
+          </Typography>
+          {isValid && <CheckCircleIcon sx={{ fontSize: 16, color: theme.palette.success.main, ml: 'auto' }} />}
+        </Stack>
+
+        <Grid container spacing={1} sx={{ mb: 1 }}>
+          <Grid item xs={5}>
+            <TextField
+              fullWidth
+              type="time"
+              size="small"
+              label="Start"
+              value={slot.start}
+              onChange={(e) => onSlotChange(index, 'start', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ '& input': { fontSize: '0.875rem' } }}
+            />
+          </Grid>
+          <Grid item xs={5}>
+            <TextField
+              fullWidth
+              type="time"
+              size="small"
+              label="End"
+              value={slot.end}
+              onChange={(e) => onSlotChange(index, 'end', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ '& input': { fontSize: '0.875rem' } }}
+            />
+          </Grid>
+          <Grid item xs={2} sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => onRemoveSlot(index)}
+              sx={{
+                bgcolor: alpha('#ef4444', 0.1),
+                '&:hover': { bgcolor: alpha('#ef4444', 0.2) },
+              }}
+            >
+              <DeleteIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Grid>
+        </Grid>
+
+        {isValid && (
+          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+            <Chip
+              icon={<ClockIcon />}
+              label={`${slot.start} - ${slot.end}`}
+              size="small"
+              sx={{ fontSize: '0.7rem' }}
+            />
+            <Chip
+              label={duration}
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem' }}
+            />
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function AvailabilityPage() {
+  const theme = useTheme();
   const { provider, refreshProfile } = useAuth();
   const [workingDays, setWorkingDays] = useState(provider?.availability?.workingDays || []);
   const [slots, setSlots] = useState(provider?.availability?.slots || [{ start: '', end: '' }]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleSlotChange = (index, key, value) => {
     setSlots((prev) => prev.map((slot, idx) => (idx === index ? { ...slot, [key]: value } : slot)));
   };
 
-  const addSlot = () => setSlots((prev) => [...prev, { start: '', end: '' }]);
+  const addSlot = () => {
+    setSlots((prev) => [...prev, { start: '', end: '' }]);
+    setOpenDialog(false);
+  };
+
   const removeSlot = (index) => setSlots((prev) => prev.filter((_, idx) => idx !== index));
 
   const handleSave = async () => {
@@ -45,91 +163,278 @@ export default function AvailabilityPage() {
       setError('');
       setMessage('');
       const validSlots = slots.filter((slot) => slot.start && slot.end);
+      if (validSlots.length === 0) {
+        setError('Please add at least one valid time slot');
+        return;
+      }
       await api.put('/providers/availability', { workingDays, slots: validSlots });
       await refreshProfile();
-      setMessage('Availability updated');
+      setMessage('✅ Availability updated successfully');
+      setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update availability');
     }
   };
 
+  const validSlots = slots.filter((s) => s.start && s.end);
+  const totalWeeklyHours = validSlots.reduce((sum, slot) => {
+    const [startH, startM] = slot.start.split(':').map(Number);
+    const [endH, endM] = slot.end.split(':').map(Number);
+    const diff = (endH * 60 + endM) - (startH * 60 + startM);
+    return sum + (diff > 0 ? diff : 0);
+  }, 0) * workingDays.length / 60;
+
   return (
-    <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={700}>
-        Availability & Slots
-      </Typography>
+    <Stack spacing={1.5}>
+      {/* HEADER */}
+      <Box
+        sx={{
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+          borderRadius: 3,
+          p: { xs: 2, sm: 2.5 },
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.3, letterSpacing: '-0.01em' }}>
+              🕐 Availability & Time Slots
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Manage your working days and available time slots
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              bgcolor: alpha(theme.palette.info.main, 0.12),
+              color: theme.palette.info.main,
+              borderRadius: 2,
+              p: 1.5,
+              textAlign: 'center',
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem', display: 'block' }}>
+              Weekly Hours
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              {totalWeeklyHours.toFixed(1)}h
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
-      {message ? <Alert severity="success">{message}</Alert> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      {/* ALERTS */}
+      {message && (
+        <Alert
+          severity="success"
+          sx={{
+            borderRadius: 2,
+            boxShadow: `0 2px 8px ${alpha('#22c55e', 0.15)}`,
+            backgroundColor: alpha('#22c55e', 0.1),
+          }}
+        >
+          {message}
+        </Alert>
+      )}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{
+            borderRadius: 2,
+            boxShadow: `0 2px 8px ${alpha('#ef4444', 0.15)}`,
+            backgroundColor: alpha('#ef4444', 0.1),
+          }}
+        >
+          {error}
+        </Alert>
+      )}
 
-      <Card sx={{ borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6">Working Days</Typography>
-          <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mb: 2 }}>
-            {days.map((day) => (
-              <Stack key={day.key} direction="row" alignItems="center" spacing={0.5}>
-                <Checkbox
-                  checked={workingDays.includes(day.key)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setWorkingDays((prev) => [...prev, day.key]);
-                    } else {
-                      setWorkingDays((prev) => prev.filter((d) => d !== day.key));
-                    }
-                  }}
-                />
-                <Typography>{day.label}</Typography>
-              </Stack>
-            ))}
-          </Stack>
-
-          <Typography variant="h6" sx={{ mt: 1 }}>
-            Available Time Slots
+      {/* SECTION 1: WORKING DAYS */}
+      <Card sx={{ borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, fontSize: '1rem' }}>
+            📅 Working Days
           </Typography>
-
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {slots.map((slot, index) => (
-              <Grid container spacing={1} key={`${slot.start}-${slot.end}-${index}`} alignItems="center">
-                <Grid item xs={5}>
-                  <TextField
-                    fullWidth
-                    type="time"
-                    label="Start"
-                    value={slot.start}
-                    onChange={(e) => handleSlotChange(index, 'start', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={5}>
-                  <TextField
-                    fullWidth
-                    type="time"
-                    label="End"
-                    value={slot.end}
-                    onChange={(e) => handleSlotChange(index, 'end', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <IconButton color="error" onClick={() => removeSlot(index)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Grid>
-              </Grid>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            {days.map((day) => (
+              <Chip
+                key={day.key}
+                label={day.label}
+                onClick={() => {
+                  if (workingDays.includes(day.key)) {
+                    setWorkingDays((prev) => prev.filter((d) => d !== day.key));
+                  } else {
+                    setWorkingDays((prev) => [...prev, day.key]);
+                  }
+                }}
+                variant={workingDays.includes(day.key) ? 'filled' : 'outlined'}
+                color={workingDays.includes(day.key) ? 'primary' : 'default'}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.shadows[2],
+                  },
+                }}
+              />
             ))}
           </Stack>
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              Selected: <strong>{workingDays.length} days</strong>
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={(workingDays.length / 7) * 100}
+              sx={{
+                mt: 0.8,
+                height: 6,
+                borderRadius: 3,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 3,
+                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
+                },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </Card>
 
-          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-            <Button variant="outlined" onClick={addSlot}>
-              Add Slot
+      {/* SECTION 2: TIME SLOTS */}
+      <Card sx={{ borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                ⏰ Available Time Slots
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {validSlots.length} valid slot{validSlots.length !== 1 ? 's' : ''}
+              </Typography>
+            </Box>
+            <Chip
+              icon={<AddIcon />}
+              label="New Slot"
+              onClick={() => setOpenDialog(true)}
+              color="primary"
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+
+          {slots.length === 0 ? (
+            <Box
+              sx={{
+                textAlign: 'center',
+                py: 3,
+                bgcolor: alpha(theme.palette.info.main, 0.05),
+                borderRadius: 2,
+                border: `1px dashed ${theme.palette.divider}`,
+              }}
+            >
+              <AccessTimeIcon sx={{ fontSize: 40, color: alpha(theme.palette.text.secondary, 0.4), mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                No time slots added yet
+              </Typography>
+            </Box>
+          ) : (
+            <Grid container spacing={1.5} sx={{ mt: 0 }}>
+              {slots.map((slot, index) => (
+                <Grid item xs={12} sm={6} md={4} key={`${slot.start}-${slot.end}-${index}`}>
+                  <SlotCard
+                    slot={slot}
+                    index={index}
+                    onSlotChange={handleSlotChange}
+                    onRemoveSlot={removeSlot}
+                    theme={theme}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* ACTION BUTTONS */}
+          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => setOpenDialog(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Add Another Slot
             </Button>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button variant="contained" onClick={handleSave}>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSave}
+              sx={{
+                borderRadius: 2,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
+              }}
+            >
               Save Availability
             </Button>
           </Stack>
         </CardContent>
       </Card>
+
+      {/* SLOT INFO CARDS */}
+      {validSlots.length > 0 && (
+        <Grid container spacing={1.5}>
+          <Grid item xs={12} sm={6}>
+            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.info.main, 0.05) }}>
+              <CardContent sx={{ p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  📊 Total Hours (Weekly)
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.info.main }}>
+                  {totalWeeklyHours.toFixed(1)}h
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {workingDays.length} days × {(totalWeeklyHours / (workingDays.length || 1)).toFixed(1)}h per day
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.success.main, 0.05) }}>
+              <CardContent sx={{ p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  ✅ Valid Slots
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
+                  {validSlots.length}/{slots.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {slots.length - validSlots.length} incomplete slot{slots.length - validSlots.length !== 1 ? 's' : ''}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ADD SLOT DIALOG */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Add New Time Slot</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            New slots will be added as empty. Fill them with your preferred times.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={addSlot} variant="contained">
+            Add Slot
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
