@@ -3,31 +3,27 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   CircularProgress,
   Container,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   Stack,
   TextField,
   Typography,
-  Divider,
-  Chip,
   InputAdornment,
   Fade,
-  Step,
-  Stepper,
-  StepLabel,
-  Paper,
-  LinearProgress,
 } from '@mui/material';
 import {
-  Phone as PhoneIcon,
-  VpnKey as OtpIcon,
-  CheckCircle as CheckCircleIcon,
-  ArrowForward as ArrowForwardIcon,
-  Edit as EditIcon,
-  Security as SecurityIcon,
-  Business as BusinessIcon,
+  PhoneOutlined as PhoneIcon,
+  VpnKeyOutlined as OtpIcon,
+  ArrowForwardRounded as ArrowForwardIcon,
+  BuildRounded as BrandIcon,
+  StarBorderRounded as StarIcon,
+  ShieldOutlined as ShieldIcon,
+  ScheduleRounded as ScheduleIcon,
+  CheckCircleOutlineRounded as CheckIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -105,80 +101,140 @@ export default function LoginPage() {
     setSuccess('');
   };
 
-  const steps = ['Enter Mobile', 'Verify OTP'];
-  const currentStep = otpSent ? 1 : 0;
-
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#edf2f7',
-        py: 4,
+        bgcolor: '#f1f3f6',
       }}
     >
-      <Container maxWidth="sm">
+      <Container maxWidth={false} disableGutters>
         <Fade in timeout={600}>
-          <Box>
-            {/* HEADER WITH BRANDING */}
-            <Box sx={{ textAlign: 'center', mb: 4, color: '#0f172a' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
-                <BusinessIcon sx={{ fontSize: 40, color: '#2563eb' }} />
-                <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: 1 }}>
-                  FixItPro
+          <Box
+            sx={{
+              minHeight: '100vh',
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '0.94fr 1.06fr' },
+            }}
+          >
+            <Box
+              sx={{
+                display: { xs: 'none', md: 'flex' },
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                p: 7,
+                color: '#f8fafc',
+                background:
+                  'radial-gradient(circle at 68% 58%, rgba(16, 185, 129, 0.22) 0%, rgba(16, 185, 129, 0) 55%), linear-gradient(165deg, #111b35 0%, #1b2845 42%, #1c4d4a 100%)',
+              }}
+            >
+              <Box>
+                <Stack direction="row" spacing={1.6} alignItems="center" sx={{ mb: 8 }}>
+                  <Box
+                    sx={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: '18px',
+                      display: 'grid',
+                      placeItems: 'center',
+                      bgcolor: '#13b8a6',
+                    }}
+                  >
+                    <BrandIcon sx={{ fontSize: 34, color: '#e6fffb' }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1 }}>
+                      FixItPro
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(226, 232, 240, 0.78)', fontSize: 29 / 2 }}>
+                      Service Provider Portal
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Typography sx={{ fontSize: 58 / 2, fontWeight: 800, lineHeight: 1.2, maxWidth: 460 }}>
+                  Grow your business.
+                  <br />
+                  Serve more customers.
                 </Typography>
+                <Typography
+                  sx={{
+                    mt: 3,
+                    color: 'rgba(226, 232, 240, 0.78)',
+                    maxWidth: 520,
+                    fontSize: 17,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Join India&apos;s fastest-growing home services platform. Get steady bookings, earn more,
+                  and manage everything from one place.
+                </Typography>
+
+                <List sx={{ mt: 5, p: 0 }}>
+                  {[
+                    { label: 'Join 10,000+ verified service providers', icon: <StarIcon /> },
+                    { label: 'Secure and on-time payments guaranteed', icon: <ShieldIcon /> },
+                    { label: 'Flexible scheduling on your terms', icon: <ScheduleIcon /> },
+                    { label: 'Dedicated support and training', icon: <CheckIcon /> },
+                  ].map((item) => (
+                    <ListItem key={item.label} disableGutters sx={{ py: 1.1 }}>
+                      <ListItemIcon sx={{ minWidth: 54 }}>
+                        <Box
+                          sx={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 2,
+                            display: 'grid',
+                            placeItems: 'center',
+                            bgcolor: 'rgba(148, 163, 184, 0.2)',
+                            color: '#2dd4bf',
+                          }}
+                        >
+                          {item.icon}
+                        </Box>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          sx: { fontSize: 35 / 2, color: '#e2e8f0' },
+                        }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Service Provider Portal
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#475569' }}>
-                Secure and Easy Login
+
+              <Typography sx={{ color: 'rgba(148, 163, 184, 0.72)', fontSize: 28 / 2 }}>
+                © 2026 FixItPro. All rights reserved.
               </Typography>
             </Box>
 
-            {/* MAIN CARD */}
-            <Card
-              elevation={0}
+            <Box
               sx={{
-                borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                px: { xs: 2.5, sm: 5, md: 8 },
+                py: { xs: 6, md: 0 },
               }}
             >
-              <CardContent sx={{ p: 4 }}>
-                {/* PROGRESS STEPPER */}
-                <Box sx={{ mb: 3 }}>
-                  <Stepper activeStep={currentStep} sx={{ pt: 2 }}>
-                    {steps.map((label) => (
-                      <Step key={label}>
-                        <StepLabel>{label}</StepLabel>
-                      </Step>
-                    ))}
-                  </Stepper>
-                </Box>
+              <Box sx={{ width: '100%', maxWidth: 560 }}>
+                <Typography variant="h3" sx={{ display: { xs: 'block', md: 'none' }, fontWeight: 800, mb: 1.2 }}>
+                  FixItPro
+                </Typography>
 
-                <Divider sx={{ mb: 3 }} />
-
-                {/* ALERTS */}
                 {error && (
                   <Fade in={!!error}>
                     <Alert
                       severity="error"
                       sx={{
-                        mb: 2,
+                        mb: 2.3,
                         borderRadius: 2,
-                        background: 'linear-gradient(135deg, #fee 0%, #fdd 100%)',
-                        border: '1px solid #f5c6c6',
-                        '& .MuiAlert-icon': { color: '#dc2626' },
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {error}
-                      </Typography>
+                      {error}
                     </Alert>
                   </Fade>
                 )}
@@ -188,77 +244,62 @@ export default function LoginPage() {
                     <Alert
                       severity="success"
                       sx={{
-                        mb: 2,
+                        mb: 2.3,
                         borderRadius: 2,
-                        background: 'linear-gradient(135deg, #ecfdf5 0%, #dbeafe 100%)',
+                        background: '#ecfdf5',
                         border: '1px solid #86efac',
-                        '& .MuiAlert-icon': { color: '#22c55e' },
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {success}
-                      </Typography>
+                      {success}
                     </Alert>
                   </Fade>
                 )}
 
-                {/* MOBILE INPUT SECTION */}
                 {!otpSent ? (
                   <Fade in={!otpSent}>
-                    <Stack spacing={3}>
+                    <Stack spacing={3.2}>
                       <Box>
-                        <Typography
-                          variant="subtitle1"
-                          sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 0.8 }}
-                        >
-                          <PhoneIcon sx={{ color: '#667eea' }} />
-                          Enter Your Mobile Number
+                        <Typography variant="h3" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+                          Welcome back
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                          We'll send you a 6-digit OTP for verification
+                        <Typography sx={{ color: '#64748b', fontSize: 18, mb: 4 }}>
+                          Enter your registered phone number to continue
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700, color: '#111827', mb: 1.3 }}>
+                          Phone Number
                         </Typography>
 
                         <TextField
                           fullWidth
-                          placeholder="10-digit mobile number"
+                          placeholder="Enter 10-digit number"
                           value={mobile}
                           onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                           disabled={loading}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
-                                <PhoneIcon sx={{ color: '#667eea', mr: 1 }} />
-                              </InputAdornment>
-                            ),
-                            endAdornment: mobile.length === 10 && (
-                              <InputAdornment position="end">
-                                <CheckCircleIcon sx={{ color: '#22c55e' }} />
+                                <PhoneIcon sx={{ color: '#64748b', mr: 0.6 }} />
                               </InputAdornment>
                             ),
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2.5,
-                              fontSize: '1.1em',
-                              fontWeight: 600,
-                              background: '#f9fafb',
-                              transition: 'all 0.3s ease',
-                              '&:hover': { background: '#f3f4f6' },
+                              borderRadius: 1.6,
+                              background: '#f8fafc',
+                              fontSize: 32 / 2,
                               '&.Mui-focused': {
-                                background: 'white',
-                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
+                                boxShadow: '0 0 0 3px rgba(20, 184, 166, 0.12)',
                               },
                             },
                             '& .MuiOutlinedInput-input': {
-                              padding: '16px 14px',
-                              letterSpacing: '0.05em',
+                              py: 2,
                             },
                           }}
                         />
 
                         {mobile.length > 0 && mobile.length < 10 && (
                           <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.8 }}>
-                            ⚠️ Enter {10 - mobile.length} more digit{10 - mobile.length > 1 ? 's' : ''}
+                            Enter {10 - mobile.length} more digit{10 - mobile.length > 1 ? 's' : ''}
                           </Typography>
                         )}
                       </Box>
@@ -270,110 +311,86 @@ export default function LoginPage() {
                         disabled={loading || mobile.length !== 10}
                         endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <ArrowForwardIcon />}
                         sx={{
-                          py: 1.8,
-                          fontSize: '1.1em',
-                          fontWeight: 700,
-                          borderRadius: 2.5,
+                          py: 1.7,
+                          fontSize: 34 / 2,
+                          fontWeight: 800,
+                          borderRadius: 1.6,
                           textTransform: 'none',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-                          transition: 'all 0.3s ease',
+                          background: 'linear-gradient(135deg, #148f7d 0%, #1fb59a 100%)',
+                          boxShadow: '0 10px 25px rgba(20, 143, 125, 0.24)',
                           '&:hover:not(:disabled)': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 15px 40px rgba(102, 126, 234, 0.4)',
-                          },
-                          '&:disabled': {
-                            opacity: 0.5,
+                            boxShadow: '0 13px 30px rgba(20, 143, 125, 0.32)',
                           },
                         }}
                       >
                         {loading ? 'Sending OTP...' : 'Send OTP'}
                       </Button>
 
-                      {/* SECURITY INFO */}
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          background: 'linear-gradient(135deg, #f0f4ff 0%, #f5e6ff 100%)',
-                          border: '1px solid #e0e7ff',
-                          borderRadius: 2.5,
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <SecurityIcon sx={{ color: '#667eea', fontSize: 20, mt: 0.2, flexShrink: 0 }} />
-                          <Typography variant="caption" sx={{ color: '#4338ca', lineHeight: 1.6 }}>
-                            Your data is secure. We use industry-standard encryption for all communications.
-                          </Typography>
+                      <Typography sx={{ textAlign: 'center', color: '#64748b', fontSize: 16 }}>
+                        By continuing, you agree to our{' '}
+                        <Box component="span" sx={{ color: '#0f766e' }}>
+                          Terms
+                        </Box>{' '}
+                        &{' '}
+                        <Box component="span" sx={{ color: '#0f766e' }}>
+                          Privacy Policy
                         </Box>
-                      </Paper>
+                      </Typography>
                     </Stack>
                   </Fade>
                 ) : (
-                  /* OTP VERIFICATION SECTION */
                   <Fade in={otpSent}>
-                    <Stack spacing={3}>
+                    <Stack spacing={3.1}>
                       <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                            <OtpIcon sx={{ color: '#764ba2' }} />
-                            Enter OTP
-                          </Typography>
-                          <Chip
-                            icon={<EditIcon />}
-                            label={mobile}
-                            onClick={handleChangeMobile}
-                            variant="outlined"
-                            size="small"
-                            sx={{ cursor: 'pointer' }}
-                          />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                          6-digit code sent to {mobile} · Expires in 10 minutes
+                        <Typography variant="h3" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+                          Verify your number
+                        </Typography>
+                        <Typography sx={{ color: '#64748b', fontSize: 18, mb: 4 }}>
+                          We&apos;ve sent a 6-digit code to +91{mobile}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700, color: '#111827', mb: 1.3 }}>
+                          Enter OTP
                         </Typography>
 
                         <TextField
                           fullWidth
-                          placeholder="000000"
+                          placeholder="Enter 6-digit OTP"
                           value={otp}
                           onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           disabled={loading}
                           inputProps={{
                             maxLength: 6,
-                            style: { textAlign: 'center', letterSpacing: '8px', fontSize: '1.4em', fontWeight: 700 },
+                            style: {
+                              textAlign: 'center',
+                              letterSpacing: '0.45em',
+                              fontSize: '1.3rem',
+                              fontWeight: 700,
+                            },
                           }}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
-                                <OtpIcon sx={{ color: '#764ba2', mr: 1 }} />
-                              </InputAdornment>
-                            ),
-                            endAdornment: otp.length === 6 && (
-                              <InputAdornment position="end">
-                                <CheckCircleIcon sx={{ color: '#22c55e' }} />
+                                <OtpIcon sx={{ color: '#64748b', mr: 0.6 }} />
                               </InputAdornment>
                             ),
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2.5,
-                              background: '#f9fafb',
-                              transition: 'all 0.3s ease',
-                              '&:hover': { background: '#f3f4f6' },
+                              borderRadius: 1.6,
+                              background: '#f8fafc',
                               '&.Mui-focused': {
-                                background: 'white',
-                                boxShadow: '0 0 0 3px rgba(118, 75, 162, 0.1)',
+                                boxShadow: '0 0 0 3px rgba(20, 184, 166, 0.12)',
                               },
                             },
                             '& .MuiOutlinedInput-input': {
-                              padding: '20px 14px',
+                              py: 1.8,
                             },
                           }}
                         />
 
                         {otp.length > 0 && otp.length < 6 && (
                           <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.8 }}>
-                            ⚠️ Enter {6 - otp.length} more digit{6 - otp.length > 1 ? 's' : ''}
+                            Enter {6 - otp.length} more digit{6 - otp.length > 1 ? 's' : ''}
                           </Typography>
                         )}
                       </Box>
@@ -382,13 +399,13 @@ export default function LoginPage() {
                         <Alert
                           severity="info"
                           sx={{
-                            borderRadius: 2.5,
-                            background: 'linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%)',
+                            borderRadius: 2,
+                            background: '#eff6ff',
                             border: '1px solid #93c5fd',
                           }}
                         >
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#0369a1' }}>
-                            🔑 Dev Mode: OTP is <strong>{debugOtp}</strong>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f4c81' }}>
+                            Dev mode OTP: <strong>{debugOtp}</strong>
                           </Typography>
                         </Alert>
                       )}
@@ -398,22 +415,17 @@ export default function LoginPage() {
                         size="large"
                         onClick={handleVerifyOtp}
                         disabled={loading || otp.length !== 6}
-                        endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                        endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckIcon />}
                         sx={{
-                          py: 1.8,
-                          fontSize: '1.1em',
-                          fontWeight: 700,
-                          borderRadius: 2.5,
+                          py: 1.7,
+                          fontSize: 34 / 2,
+                          fontWeight: 800,
+                          borderRadius: 1.6,
                           textTransform: 'none',
-                          background: 'linear-gradient(135deg, #764ba2 0%, #f093fb 100%)',
-                          boxShadow: '0 10px 30px rgba(118, 75, 162, 0.3)',
-                          transition: 'all 0.3s ease',
+                          background: 'linear-gradient(135deg, #148f7d 0%, #1fb59a 100%)',
+                          boxShadow: '0 10px 25px rgba(20, 143, 125, 0.24)',
                           '&:hover:not(:disabled)': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 15px 40px rgba(118, 75, 162, 0.4)',
-                          },
-                          '&:disabled': {
-                            opacity: 0.5,
+                            boxShadow: '0 13px 30px rgba(20, 143, 125, 0.32)',
                           },
                         }}
                       >
@@ -425,26 +437,30 @@ export default function LoginPage() {
                         onClick={handleChangeMobile}
                         disabled={loading}
                         sx={{
-                          py: 1,
-                          color: '#667eea',
+                          py: 0.3,
+                          color: '#0f766e',
                           fontWeight: 700,
                           textTransform: 'none',
-                          '&:hover': { background: 'rgba(102, 126, 234, 0.1)' },
+                          '&:hover': { background: 'transparent', textDecoration: 'underline' },
                         }}
                       >
-                        ← Change Mobile Number
+                        Change phone number
                       </Button>
+
+                      <Typography sx={{ textAlign: 'center', color: '#64748b', fontSize: 16 }}>
+                        By continuing, you agree to our{' '}
+                        <Box component="span" sx={{ color: '#0f766e' }}>
+                          Terms
+                        </Box>{' '}
+                        &{' '}
+                        <Box component="span" sx={{ color: '#0f766e' }}>
+                          Privacy Policy
+                        </Box>
+                      </Typography>
                     </Stack>
                   </Fade>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* FOOTER */}
-            <Box sx={{ textAlign: 'center', mt: 3, color: 'white' }}>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                Having trouble logging in? Contact support
-              </Typography>
+              </Box>
             </Box>
           </Box>
         </Fade>

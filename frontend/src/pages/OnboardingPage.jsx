@@ -331,66 +331,143 @@ export default function OnboardingPage() {
 
   const StepIcon = stepIcons[activeStep].icon;
   const stepColor = stepIcons[activeStep].color;
+  const completionPercent = Math.round(((activeStep + 1) / steps.length) * 100);
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        py: 4,
-        background: '#f8f9fb',
+        py: { xs: 2.5, md: 4 },
+        px: 2,
+        background:
+          'radial-gradient(circle at 8% 12%, #e0f2fe 0, #e0f2fe 18%, transparent 18%), radial-gradient(circle at 88% 18%, #dcfce7 0, #dcfce7 16%, transparent 16%), linear-gradient(145deg, #f8fafc 0%, #f1f5f9 45%, #f0fdf4 100%)',
       }}
     >
-      <Container maxWidth="md">
+      <Container maxWidth="lg">
         <Fade in timeout={600}>
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 20px 60px rgba(15, 23, 42, 0.08)',
-            }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <Stack spacing={3}>
+          <Stack spacing={2}>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 4,
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                boxShadow: '0 18px 46px rgba(15, 23, 42, 0.24)',
+              }}
+            >
+              <CardContent sx={{ px: { xs: 2.5, md: 4 }, py: { xs: 2.3, md: 3.2 } }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+                  <Box>
+                    <Typography sx={{ color: '#94a3b8', fontWeight: 600, fontSize: 13 }}>
+                      Provider Onboarding
+                    </Typography>
+                    <Typography variant="h4" sx={{ color: '#f8fafc', fontWeight: 800, mt: 0.2 }}>
+                      Complete Your Professional Profile
+                    </Typography>
+                    <Typography sx={{ color: '#cbd5e1', mt: 0.8, maxWidth: 720 }}>
+                      Share your details to activate your service provider account and start receiving bookings.
+                    </Typography>
+                  </Box>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      px: 2,
+                      py: 1.3,
+                      borderRadius: 2,
+                      alignSelf: { xs: 'flex-start', md: 'center' },
+                      bgcolor: 'rgba(15, 118, 110, 0.22)',
+                      border: '1px solid rgba(94, 234, 212, 0.35)',
+                    }}
+                  >
+                    <Typography sx={{ color: '#99f6e4', fontWeight: 700, fontSize: 13 }}>Progress</Typography>
+                    <Typography sx={{ color: '#f0fdfa', fontWeight: 800, fontSize: 20 }}>{completionPercent}%</Typography>
+                  </Paper>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 4,
+                background: 'rgba(255, 255, 255, 0.96)',
+                border: '1px solid #dbe3ef',
+                boxShadow: '0 24px 60px rgba(15, 23, 42, 0.09)',
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2.2, md: 3.5 } }}>
+                <Stack spacing={3}>
                 <Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.4, gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                     <Box
                       sx={{
-                        p: 1,
-                        borderRadius: 2,
-                        background: `${stepColor}20`,
+                        width: 52,
+                        height: 52,
+                        borderRadius: 2.2,
+                        background: `linear-gradient(145deg, ${stepColor}, ${stepColor}BB)`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        boxShadow: `0 10px 24px ${stepColor}45`,
                       }}
                     >
-                      <StepIcon sx={{ color: stepColor, fontSize: 28 }} />
+                      <StepIcon sx={{ color: '#ffffff', fontSize: 27 }} />
                     </Box>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                      Complete Your Profile
-                    </Typography>
+                      <Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                          {steps[activeStep]}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Step {activeStep + 1} of {steps.length}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        px: 1.4,
+                        py: 0.8,
+                        borderRadius: 2,
+                        border: '1px solid #dbeafe',
+                        bgcolor: '#eff6ff',
+                      }}
+                    >
+                      <Typography sx={{ color: '#1d4ed8', fontWeight: 700, fontSize: 12 }}>
+                        Profile Setup Wizard
+                      </Typography>
+                    </Paper>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 9 }}>
-                    Step {activeStep + 1} of {steps.length}: {steps[activeStep]}
-                  </Typography>
                 </Box>
 
                 <LinearProgress
                   variant="determinate"
-                  value={((activeStep + 1) / steps.length) * 100}
+                  value={(activeStep + 1) / steps.length * 100}
                   sx={{
-                    height: 6,
-                    borderRadius: 3,
-                    background: '#e5e7eb',
+                    height: 8,
+                    borderRadius: 999,
+                    background: '#e2e8f0',
                     '& .MuiLinearProgress-bar': {
-                      borderRadius: 3,
-                      background: `linear-gradient(90deg, ${stepColor}, ${stepColor}99)`,
+                      borderRadius: 999,
+                      background: `linear-gradient(90deg, ${stepColor} 0%, #0ea5e9 100%)`,
                     },
                   }}
                 />
 
-                <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 1 }}>
+                <Stepper
+                  activeStep={activeStep}
+                  alternativeLabel
+                  sx={{
+                    pt: 1,
+                    '& .MuiStepLabel-label': {
+                      fontWeight: 700,
+                      color: '#64748b',
+                    },
+                    '& .MuiStepLabel-label.Mui-active': {
+                      color: '#0f172a',
+                    },
+                  }}
+                >
                   {steps.map((label) => (
                     <Step key={label}>
                       <StepLabel>{label}</StepLabel>
@@ -405,7 +482,7 @@ export default function OnboardingPage() {
                     <Alert
                       severity="error"
                       sx={{
-                        borderRadius: 2,
+                        borderRadius: 2.2,
                         background: '#fef2f2',
                         border: '1px solid #fecaca',
                       }}
@@ -417,10 +494,22 @@ export default function OnboardingPage() {
                   </Fade>
                 )}
 
+                <Box
+                  sx={{
+                    '& .MuiTextField-root .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: '#ffffff',
+                    },
+                    '& .MuiFormLabel-root': {
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+
                 {activeStep === 0 && (
                   <Fade in={activeStep === 0}>
                     <Stack spacing={2.5}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
+                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                         <TextField
                           label="Mobile Number"
                           value={provider?.mobile || ''}
@@ -515,13 +604,18 @@ export default function OnboardingPage() {
                                 key={option.value}
                                 elevation={0}
                                 sx={{
-                                  p: 1.2,
-                                  border: '2px solid #e5e7eb',
+                                  p: 1.1,
+                                  border: '1px solid #dbe3ef',
                                   borderRadius: 2,
                                   cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  '&:hover': {
+                                    borderColor: '#93c5fd',
+                                    boxShadow: '0 8px 18px rgba(59, 130, 246, 0.08)',
+                                  },
                                   ...(professional.expertise.includes(option.value) && {
                                     borderColor: stepColor,
-                                    background: `${stepColor}10`,
+                                    background: `${stepColor}14`,
                                   }),
                                 }}
                                 onClick={() => {
@@ -631,7 +725,7 @@ export default function OnboardingPage() {
                       </FormControl>
 
                       {professional.hasVehicle && (
-                        <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                        <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #dbe3ef', bgcolor: '#f8fafc' }}>
                           <Stack spacing={2}>
                             <Typography sx={{ fontWeight: 700, color: '#1f2937' }}>Vehicle Details</Typography>
                             <TextField
@@ -696,7 +790,7 @@ export default function OnboardingPage() {
 
                       <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
-                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth sx={{ borderRadius: 2, py: 1.1 }}>
                             Upload Aadhaar Front
                             <input
                               type="file"
@@ -710,13 +804,23 @@ export default function OnboardingPage() {
                               component="img"
                               src={documents.aadharFrontUrl}
                               alt="Aadhaar Front Preview"
-                              sx={{ mt: 1.2, width: '100%', height: 150, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                              sx={{
+                                mt: 1.2,
+                                width: '100%',
+                                height: 180,
+                                objectFit: 'contain',
+                                objectPosition: 'center',
+                                borderRadius: 2,
+                                border: '1px solid #cbd5e1',
+                                bgcolor: '#f8fafc',
+                                p: 0.6,
+                              }}
                             />
                           )}
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                          <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth sx={{ borderRadius: 2, py: 1.1 }}>
                             Upload Aadhaar Back
                             <input
                               type="file"
@@ -730,7 +834,17 @@ export default function OnboardingPage() {
                               component="img"
                               src={documents.aadharBackUrl}
                               alt="Aadhaar Back Preview"
-                              sx={{ mt: 1.2, width: '100%', height: 150, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                              sx={{
+                                mt: 1.2,
+                                width: '100%',
+                                height: 180,
+                                objectFit: 'contain',
+                                objectPosition: 'center',
+                                borderRadius: 2,
+                                border: '1px solid #cbd5e1',
+                                bgcolor: '#f8fafc',
+                                p: 0.6,
+                              }}
                             />
                           )}
                         </Grid>
@@ -746,7 +860,7 @@ export default function OnboardingPage() {
                         onChange={(e) => setDocuments({ ...documents, panNumber: e.target.value.toUpperCase().slice(0, 10) })}
                       />
 
-                      <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth>
+                      <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} fullWidth sx={{ borderRadius: 2, py: 1.1 }}>
                         Upload PAN Image
                         <input
                           type="file"
@@ -760,7 +874,16 @@ export default function OnboardingPage() {
                           component="img"
                           src={documents.panUrl}
                           alt="PAN Preview"
-                          sx={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                          sx={{
+                            width: '100%',
+                            height: 210,
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            borderRadius: 2,
+                            border: '1px solid #cbd5e1',
+                            bgcolor: '#f8fafc',
+                            p: 0.7,
+                          }}
                         />
                       )}
 
@@ -816,7 +939,7 @@ export default function OnboardingPage() {
                 {activeStep === 3 && (
                   <Fade in={activeStep === 3}>
                     <Stack spacing={2.5}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#f0f4ff', border: '1px solid #dbeafe', borderRadius: 2.5 }}>
+                      <Paper elevation={0} sx={{ p: 2, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 2.5 }}>
                         <Typography variant="body2" sx={{ color: '#1d4ed8', mb: 1, fontWeight: 600 }}>
                           Enable location permission to auto-fill coordinates and full address.
                         </Typography>
@@ -877,6 +1000,7 @@ export default function OnboardingPage() {
                     </Stack>
                   </Fade>
                 )}
+                </Box>
 
                 <Divider />
 
@@ -890,7 +1014,8 @@ export default function OnboardingPage() {
                       px: 3,
                       fontWeight: 700,
                       textTransform: 'none',
-                      fontSize: '1em',
+                      fontSize: '0.98em',
+                      borderRadius: 1.8,
                       color: stepColor,
                       '&:hover': { background: `${stepColor}10` },
                     }}
@@ -914,12 +1039,13 @@ export default function OnboardingPage() {
                     size="large"
                     sx={{
                       px: 4,
-                      fontWeight: 700,
+                      py: 1.2,
+                      fontWeight: 800,
                       textTransform: 'none',
-                      fontSize: '1.05em',
-                      borderRadius: 2.5,
-                      background: `linear-gradient(135deg, ${stepColor}, ${stepColor}99)`,
-                      boxShadow: `0 10px 30px ${stepColor}30`,
+                      fontSize: '1em',
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, #0f766e 0%, #0ea5e9 100%)`,
+                      boxShadow: '0 10px 26px rgba(14, 116, 144, 0.3)',
                       '&:disabled': {
                         opacity: 0.5,
                       },
@@ -930,13 +1056,14 @@ export default function OnboardingPage() {
                         ? 'Submitting...'
                         : 'Saving...'
                       : activeStep === steps.length - 1
-                      ? 'Complete Profile'
-                      : 'Save & Continue'}
+                      ? 'Submit Profile'
+                      : 'Save and Continue'}
                   </Button>
                 </Stack>
               </Stack>
             </CardContent>
           </Card>
+          </Stack>
         </Fade>
       </Container>
     </Box>

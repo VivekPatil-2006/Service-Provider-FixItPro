@@ -2,7 +2,6 @@ import {
   AppBar,
   Box,
   CssBaseline,
-  Divider,
   Drawer,
   IconButton,
   List,
@@ -14,26 +13,30 @@ import {
   Chip,
   Button,
   Avatar,
+  Stack,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import PersonIcon from '@mui/icons-material/Person';
-import BuildIcon from '@mui/icons-material/Build';
-import ScheduleIcon from '@mui/icons-material/Schedule';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
+import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
+import HandymanOutlinedIcon from '@mui/icons-material/HandymanOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const drawerWidth = 260;
+const drawerWidth = 286;
 
 const menu = [
-  { label: 'Dashboard', path: '/app/dashboard', icon: <DashboardIcon /> },
-  { label: 'Bookings', path: '/app/bookings', icon: <AssignmentIcon /> },
-  { label: 'Profile', path: '/app/profile', icon: <PersonIcon /> },
-  { label: 'Services & Skills', path: '/app/skills', icon: <BuildIcon /> },
-  { label: 'Availability & Slots', path: '/app/availability', icon: <ScheduleIcon /> },
+  { label: 'Dashboard', path: '/app/dashboard', icon: <DashboardOutlinedIcon /> },
+  { label: 'Bookings', path: '/app/bookings', icon: <AssignmentOutlinedIcon /> },
+  { label: 'Availability', path: '/app/availability', icon: <ScheduleOutlinedIcon /> },
+  { label: 'Services', path: '/app/skills', icon: <BuildOutlinedIcon /> },
+  { label: 'Profile', path: '/app/profile', icon: <PersonOutlineOutlinedIcon /> },
 ];
 
 export default function ProviderLayout() {
@@ -43,51 +46,128 @@ export default function ProviderLayout() {
   const { provider, logout } = useAuth();
 
   const drawerContent = (
-    <Box sx={{ height: '100%', bgcolor: '#0f172a', color: '#cbd5e1' }}>
-      <Toolbar sx={{ borderBottom: '1px solid rgba(148, 163, 184, 0.16)' }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#f8fafc' }}>
-            FixItPro
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#94a3b8' }}>
-            Technician Panel
-          </Typography>
-        </Box>
-      </Toolbar>
-      <List sx={{ p: 1.5 }}>
-        {menu.map((item) => (
-          <ListItemButton
-            key={item.path}
-            selected={location.pathname === item.path}
-            onClick={() => {
-              navigate(item.path);
-              setMobileOpen(false);
-            }}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              color: '#94a3b8',
-              '& .MuiListItemIcon-root': {
-                color: '#94a3b8',
-                minWidth: 38,
-              },
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(14, 165, 233, 0.15)',
-                color: '#38bdf8',
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        color: '#cbd5e1',
+        background:
+          'linear-gradient(180deg, #111a2e 0%, #111d34 42%, #111a2f 100%)',
+      }}
+    >
+      <Box>
+        <Toolbar sx={{ minHeight: '92px !important', borderBottom: '1px solid rgba(148, 163, 184, 0.12)' }}>
+          <Stack direction="row" spacing={1.4} alignItems="center">
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '16px',
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: '#11b9a3',
+              }}
+            >
+              <HandymanOutlinedIcon sx={{ color: '#e8fffb' }} />
+            </Box>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: '#f8fafc', lineHeight: 1.1 }}>
+                FixItPro
+              </Typography>
+              <Typography sx={{ color: '#6f819f', fontSize: 14.5, mt: 0.2 }}>
+                Service Provider
+              </Typography>
+            </Box>
+          </Stack>
+        </Toolbar>
+
+        <List sx={{ p: 1.6, pt: 2.2 }}>
+          {menu.map((item) => {
+            const active = location.pathname === item.path;
+            return (
+              <ListItemButton
+                key={item.path}
+                selected={active}
+                onClick={() => {
+                  navigate(item.path);
+                  setMobileOpen(false);
+                }}
+                sx={{
+                  borderRadius: 2.5,
+                  mb: 0.8,
+                  px: 1.8,
+                  py: 1.4,
+                  color: active ? '#12d3b5' : '#97a7c1',
+                  '& .MuiListItemIcon-root': {
+                    color: active ? '#12d3b5' : '#5d6f90',
+                    minWidth: 42,
+                  },
+                  '& .MuiListItemText-primary': {
+                    fontWeight: active ? 700 : 600,
+                    fontSize: 18.5,
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(18, 211, 181, 0.18)',
+                  },
+                  '&.Mui-selected:hover': {
+                    backgroundColor: 'rgba(18, 211, 181, 0.22)',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                  },
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+                {active ? (
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: '#12d3b5',
+                      boxShadow: '0 0 8px rgba(18, 211, 181, 0.45)',
+                    }}
+                  />
+                ) : null}
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </Box>
+
+      <Box sx={{ p: 1.6, borderTop: '1px solid rgba(148, 163, 184, 0.12)' }}>
+        <List sx={{ p: 0 }}>
+          {[{ label: 'Settings', icon: <SettingsOutlinedIcon /> }, { label: 'Help', icon: <HelpOutlineOutlinedIcon /> }].map((item) => (
+            <ListItemButton
+              key={item.label}
+              sx={{
+                borderRadius: 2.2,
+                mb: 0.6,
+                px: 1.8,
+                py: 1.1,
+                color: '#97a7c1',
                 '& .MuiListItemIcon-root': {
-                  color: '#38bdf8',
+                  color: '#7b89a1',
+                  minWidth: 42,
                 },
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(148, 163, 184, 0.12)',
-              },
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
+                '& .MuiListItemText-primary': {
+                  fontWeight: 500,
+                  fontSize: 18,
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                },
+              }}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </List>
+      </Box>
     </Box>
   );
 

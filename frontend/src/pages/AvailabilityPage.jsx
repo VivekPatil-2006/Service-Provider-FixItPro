@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
+  CircularProgress,
   alpha,
   useTheme,
 } from '@mui/material';
@@ -38,6 +39,61 @@ const days = [
   { key: 'SAT', label: 'Sat' },
   { key: 'SUN', label: 'Sun' },
 ];
+
+const dayOrderMap = new Map(days.map((day, index) => [day.key, index]));
+
+const normalizeAvailability = (availability) => {
+  const incomingWorkingDays = Array.isArray(availability?.workingDays) ? availability.workingDays : [];
+  const incomingSlots = Array.isArray(availability?.slots) ? availability.slots : [];
+
+  const workingDays = [...new Set(incomingWorkingDays)]
+    .filter((day) => dayOrderMap.has(day))
+    .sort((a, b) => dayOrderMap.get(a) - dayOrderMap.get(b));
+
+  const slots = incomingSlots
+    .map((slot) => ({
+      start: String(slot?.start || '').trim(),
+      end: String(slot?.end || '').trim(),
+    }))
+    .filter((slot) => slot.start || slot.end);
+
+  return {
+    workingDays,
+    slots: slots.length ? slots : [{ start: '', end: '' }],
+  };
+};
+
+const serializeAvailability = (availability) =>
+  JSON.stringify({
+    workingDays: [...availability.workingDays].sort((a, b) => dayOrderMap.get(a) - dayOrderMap.get(b)),
+    slots: availability.slots.map((slot) => ({
+      start: slot.start,
+      end: slot.end,
+    })),
+  });
+
+const hasSlotOverlap = (slots) => {
+  const validSlots = slots
+    .filter((slot) => slot.start && slot.end)
+    .map((slot) => {
+      const [startH, startM] = slot.start.split(':').map(Number);
+      const [endH, endM] = slot.end.split(':').map(Number);
+      return {
+        ...slot,
+        startMinutes: startH * 60 + startM,
+        endMinutes: endH * 60 + endM,
+      };
+    })
+    .sort((a, b) => a.startMinutes - b.startMinutes);
+
+  for (let i = 1; i < validSlots.length; i += 1) {
+    if (validSlots[i].startMinutes < validSlots[i - 1].endMinutes) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const calculateDuration = (start, end) => {
   if (!start || !end) return '';
@@ -141,11 +197,19 @@ const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
 export default function AvailabilityPage() {
   const theme = useTheme();
   const { provider, refreshProfile } = useAuth();
-  const [workingDays, setWorkingDays] = useState(provider?.availability?.workingDays || []);
-  const [slots, setSlots] = useState(provider?.availability?.slots || [{ start: '', end: '' }]);
+  const [workingDays, setWorkingDays] = useState(() => normalizeAvailability(provider?.availability).workingDays);
+  const [slots, setSlots] = useState(() => normalizeAvailability(provider?.availability).slots);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const initialAvailability = useMemo(() => normalizeAvailability(provider?.availability), [provider?.availability]);
+
+  useEffect(() => {
+    setWorkingDays(initialAvailability.workingDays);
+    setSlots(initialAvailability.slots);
+  }, [initialAvailability]);
 
   const handleSlotChange = (index, key, value) => {
     setSlots((prev) => prev.map((slot, idx) => (idx === index ? { ...slot, [key]: value } : slot)));
@@ -156,25 +220,70 @@ export default function AvailabilityPage() {
     setOpenDialog(false);
   };
 
-  const removeSlot = (index) => setSlots((prev) => prev.filter((_, idx) => idx !== index));
+  const removeSlot = (index) => {
+    setSlots((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length ? next : [{ start: '', end: '' }];
+    });
+  };
+
+  const resetChanges = () => {
+    setWorkingDays(initialAvailability.workingDays);
+    setSlots(initialAvailability.slots);
+    setError('');
+    setMessage('');
+  };
 
   const handleSave = async () => {
     try {
       setError('');
       setMessage('');
+      setSaving(true);
+      const orderedWorkingDays = [...new Set(workingDays)]
+        .filter((day) => dayOrderMap.has(day))
+        .sort((a, b) => dayOrderMap.get(a) - dayOrderMap.get(b));
+
+      if (orderedWorkingDays.length === 0) {
+        setError('Please select at least one working day');
+        return;
+      }
+
       const validSlots = slots.filter((slot) => slot.start && slot.end);
+
       if (validSlots.length === 0) {
         setError('Please add at least one valid time slot');
         return;
       }
-      await api.put('/providers/availability', { workingDays, slots: validSlots });
+
+      const hasInvalidOrder = validSlots.some((slot) => calculateDuration(slot.start, slot.end) === 'Invalid');
+      if (hasInvalidOrder) {
+        setError('End time must be later than start time for each slot');
+        return;
+      }
+
+      if (hasSlotOverlap(validSlots)) {
+        setError('Time slots overlap. Please adjust the schedule.');
+        return;
+      }
+
+      await api.put('/providers/availability', { workingDays: orderedWorkingDays, slots: validSlots });
       await refreshProfile();
       setMessage('✅ Availability updated successfully');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update availability');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const isDirty = useMemo(() => {
+    const current = {
+      workingDays,
+      slots,
+    };
+    return serializeAvailability(current) !== serializeAvailability(initialAvailability);
+  }, [initialAvailability, slots, workingDays]);
 
   const validSlots = slots.filter((s) => s.start && s.end);
   const totalWeeklyHours = validSlots.reduce((sum, slot) => {
@@ -360,24 +469,29 @@ export default function AvailabilityPage() {
 
           {/* ACTION BUTTONS */}
           <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+            <Button variant="text" onClick={resetChanges} disabled={!isDirty || saving} sx={{ borderRadius: 2 }}>
+              Reset
+            </Button>
             <Button
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={() => setOpenDialog(true)}
+              disabled={saving}
               sx={{ borderRadius: 2 }}
             >
               Add Another Slot
             </Button>
             <Button
               variant="contained"
-              startIcon={<SaveIcon />}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
               onClick={handleSave}
+              disabled={saving || !isDirty}
               sx={{
                 borderRadius: 2,
                 background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
               }}
             >
-              Save Availability
+              {saving ? 'Saving...' : 'Save Availability'}
             </Button>
           </Stack>
         </CardContent>

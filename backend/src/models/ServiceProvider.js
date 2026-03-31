@@ -62,7 +62,7 @@ const serviceProviderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['INACTIVE', 'ACTIVE'],
+      enum: ['INACTIVE', 'ACTIVE', 'BUSY', 'AVAILABLE'],
       default: 'INACTIVE',
       index: true,
     },

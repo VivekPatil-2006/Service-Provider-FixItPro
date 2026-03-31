@@ -4,7 +4,9 @@ const serviceSchema = new mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: false,
+      ref: 'Product',
+      required: true,
+      index: true,
     },
     name: {
       type: String,
@@ -14,10 +16,12 @@ const serviceSchema = new mongoose.Schema(
     img: {
       type: String,
       default: '',
+      trim: true,
     },
     video: {
       type: String,
       default: '',
+      trim: true,
     },
     price: {
       type: Number,
@@ -27,13 +31,25 @@ const serviceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // steps is not required in your sample, but keep for compatibility
+    steps: {
+      type: [
+        {
+          title: { type: String },
+          description: { type: String, default: '' },
+          order: { type: Number },
+        },
+      ],
+      default: [],
+    },
     process: {
-      type: mongoose.Schema.Types.Mixed,
+      type: Object,
       default: {},
     },
     note: {
       type: String,
       default: '',
+      trim: true,
     },
     ratings: {
       type: Number,

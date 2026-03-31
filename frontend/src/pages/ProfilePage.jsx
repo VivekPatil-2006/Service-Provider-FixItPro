@@ -1,545 +1,637 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Avatar,
-  Badge,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
-  Divider,
+  FormControl,
   Grid,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
+  Switch,
   TextField,
   Typography,
-  Dialog,
 } from '@mui/material';
 import {
-  Edit as EditIcon,
-  Save as SaveIcon,
-  Close as CloseIcon,
-  Phone as PhoneIcon,
-  Email as EmailIcon,
-  Person as PersonIcon,
-  DirectionsCar as CarIcon,
-  LocationOn as LocationIcon,
-  Schedule as ScheduleIcon,
-  Description as DocumentIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as XCircleIcon,
-  Info as InfoIcon,
+  EditOutlined as EditIcon,
+  SaveOutlined as SaveIcon,
+  StarBorderRounded as StarIcon,
+  WorkOutlineRounded as WorkIcon,
+  CheckCircleOutlineRounded as CheckCircleIcon,
+  CurrencyRupeeRounded as RupeeIcon,
+  PersonOutlineRounded as PersonIcon,
+  LocationOnOutlined as LocationIcon,
+  DescriptionOutlined as DocumentIcon,
+  VerifiedUserOutlined as VerifiedIcon,
+  CameraAltOutlined as CameraIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+const EXPERIENCE_OPTIONS = [
+  { value: '', label: 'Not specified' },
+  { value: 'MORE_THAN_1_YEAR', label: 'More than 1 year' },
+  { value: 'SIX_TO_TWELVE_MONTHS', label: '6 to 12 months' },
+  { value: 'LESS_THAN_6_MONTHS', label: 'Less than 6 months' },
+  { value: 'NO_EXPERIENCE', label: 'No experience' },
+];
+
+const MARITAL_OPTIONS = [
+  { value: '', label: 'Not specified' },
+  { value: 'MARRIED', label: 'Married' },
+  { value: 'UNMARRIED', label: 'Unmarried' },
+];
+
+const getExperienceLabel = (value) =>
+  EXPERIENCE_OPTIONS.find((item) => item.value === value)?.label || 'Not specified';
+
+const getShortAddress = (locationAddress) => {
+  if (!locationAddress || locationAddress === 'Location not set') {
+    return 'Location not set';
+  }
+  const parts = locationAddress.split(',').map((item) => item.trim());
+  return parts.slice(0, 2).join(', ');
+};
+
 export default function ProfilePage() {
   const { provider, refreshProfile } = useAuth();
-  const [editMode, setEditMode] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [locationAddress, setLocationAddress] = useState('Fetching location...');
-  const [form, setForm] = useState({
+  const fileInputRef = useRef(null);
+
+  const [personalEdit, setPersonalEdit] = useState(false);
+  const [professionalEdit, setProfessionalEdit] = useState(false);
+
+  const [locationAddress, setLocationAddress] = useState('Loading location...');
+
+  const [personalForm, setPersonalForm] = useState({
     name: provider?.name || '',
     email: provider?.email || '',
+    mobile: provider?.mobile || '',
     emergencyContact: provider?.emergencyContact || '',
-    referralName: provider?.referralName || '',
   });
+
+  const [professionalForm, setProfessionalForm] = useState({
+    experience: provider?.experience || '',
+    maritalStatus: provider?.maritalStatus || '',
+    referralName: provider?.referralName || '',
+    hasVehicle: Boolean(provider?.hasVehicle),
+  });
+
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [profileImageUrl, setProfileImageUrl] = useState('');
 
-  // Fetch location address from coordinates
   useEffect(() => {
-    const fetchAddress = async () => {
-      if (provider?.location?.latitude && provider?.location?.longitude) {
-        try {
-          const response = await api.get('/providers/location/address', {
-            params: {
-              latitude: provider.location.latitude,
-              longitude: provider.location.longitude,
-            },
-          });
-          setLocationAddress(response.data.address);
-        } catch (err) {
-          console.error('Error fetching address:', err);
-          setLocationAddress('Location coordinates available but address could not be retrieved');
-        }
-      } else {
-        setLocationAddress('Location not set');
-      }
-    };
+    setPersonalForm({
+      name: provider?.name || '',
+      email: provider?.email || '',
+      mobile: provider?.mobile || '',
+      emergencyContact: provider?.emergencyContact || '',
+    });
 
-    fetchAddress();
-  }, [provider?.location?.latitude, provider?.location?.longitude]);
+    setProfessionalForm({
+      experience: provider?.experience || '',
+      maritalStatus: provider?.maritalStatus || '',
+      referralName: provider?.referralName || '',
+      hasVehicle: Boolean(provider?.hasVehicle),
+    });
+  }, [provider]);
 
-  const handleSave = async () => {
+  const fetchAddress = async () => {
+    if (!provider?.location?.latitude || !provider?.location?.longitude) {
+      setLocationAddress('Location not set');
+      return;
+    }
+
     try {
-      setError('');
-      setMessage('');
-      await api.put('/providers/me', form);
-      await refreshProfile();
-      setMessage('Profile updated successfully');
-      setEditMode(false);
-      setTimeout(() => setMessage(''), 2000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      const response = await api.get('/providers/location/address', {
+        params: {
+          latitude: provider.location.latitude,
+          longitude: provider.location.longitude,
+        },
+      });
+
+      setLocationAddress(response.data.address || 'Address not available');
+    } catch (_err) {
+      setLocationAddress('Location coordinates available but address could not be retrieved');
     }
   };
 
-  const expertiseMap = {
-    AC_REPAIR: '🌬️ AC Repair',
-    FRIDGE_REPAIR: '🧊 Fridge Repair',
-    TV_REPAIR: '📺 TV Repair',
+  useEffect(() => {
+    fetchAddress();
+  }, [provider?.location?.latitude, provider?.location?.longitude]);
+
+  const profileImageStorageKey = useMemo(
+    () => `fixitpro_profile_image_${provider?._id || provider?.mobile || 'default'}`,
+    [provider?._id, provider?.mobile]
+  );
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(profileImageStorageKey);
+      setProfileImageUrl(stored || '');
+    } catch (_err) {
+      setProfileImageUrl('');
+    }
+  }, [profileImageStorageKey]);
+
+  const handleProfileImagePick = () => {
+    fileInputRef.current?.click();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not specified';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+  const handleProfileImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Profile picture must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      setProfileImageUrl(result);
+      try {
+        localStorage.setItem(profileImageStorageKey, result);
+      } catch (_err) {
+        setError('Unable to save image locally. Please try a smaller image.');
+        return;
+      }
+      setMessage('Profile picture updated');
+      setError('');
+      setTimeout(() => setMessage(''), 2200);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const genderMap = {
-    MALE: 'Male',
-    FEMALE: 'Female',
-    OTHER: 'Other',
+  const handleSavePersonal = async () => {
+    try {
+      setError('');
+      setMessage('');
+
+      await api.put('/providers/me', {
+        name: personalForm.name.trim(),
+        email: personalForm.email.trim(),
+        emergencyContact: personalForm.emergencyContact.trim(),
+      });
+
+      await refreshProfile();
+      setPersonalEdit(false);
+      setMessage('Personal information updated successfully');
+      setTimeout(() => setMessage(''), 2500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update personal information');
+    }
   };
 
-  const experienceMap = {
-    'MORE THAN 1 YEAR': 'More than 1 year',
-    'SIX - TWELVE_MONTHS': '6-12 months',
-    'LESS THAN 6 MONTHS': 'Less than 6 months',
-    'NO EXPERIENCE': 'No experience',
+  const handleSaveProfessional = async () => {
+    try {
+      setError('');
+      setMessage('');
+
+      await api.put('/providers/me', {
+        experience: professionalForm.experience,
+        maritalStatus: professionalForm.maritalStatus,
+        referralName: professionalForm.referralName.trim(),
+        hasVehicle: professionalForm.hasVehicle,
+      });
+
+      await refreshProfile();
+      setProfessionalEdit(false);
+      setMessage('Professional information updated successfully');
+      setTimeout(() => setMessage(''), 2500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update professional information');
+    }
   };
 
-  const maritalStatusMap = {
-    MARRIED: 'Married',
-    UNMARRIED: 'Unmarried',
-  };
+  const initials = (provider?.name || 'SP')
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
-  const getInitial = () => {
-    return (provider?.name || 'SP').charAt(0).toUpperCase();
-  };
+  const shortLocation = useMemo(() => getShortAddress(locationAddress), [locationAddress]);
 
   const documents = provider?.documents || {};
-  const availability = provider?.availability || { workingDays: [], slots: [] };
-  const onboardingComplete = provider?.onboardingCompleted;
+  const documentItems = [
+    { title: 'Aadhaar Front', url: documents.aadharFrontUrl },
+    { title: 'Aadhaar Back', url: documents.aadharBackUrl },
+    { title: 'PAN Card', url: documents.panUrl },
+    { title: 'Cheque Sample', url: documents.chequeUrl },
+  ];
+
+  const uploadedCount = documentItems.filter((item) => Boolean(item.url)).length;
+
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 2,
+      bgcolor: '#f8fafc',
+      '& fieldset': {
+        borderColor: '#e6edf5',
+      },
+    },
+    '& .MuiInputBase-input': {
+      fontSize: 17,
+    },
+  };
 
   return (
-    <Stack spacing={3}>
-      {/* HEADER WITH NAME AND STATUS */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
-          👤 Complete Profile
-        </Typography>
-        <Button
-          variant={editMode ? 'outlined' : 'contained'}
-          startIcon={editMode ? <CloseIcon /> : <EditIcon />}
-          onClick={() => (editMode ? setEditMode(false) : setEditMode(true))}
-        >
-          {editMode ? 'Cancel' : 'Edit Details'}
-        </Button>
+    <Stack spacing={2.5}>
+      <Box>
+        <Typography sx={{ fontSize: { xs: 18, md: 26 }, fontWeight: 800, color: '#0f172a' }}>Profile</Typography>
+        <Typography sx={{ color: '#64748b', mt: 0.2, fontSize: 17 }}>Manage your provider profile</Typography>
       </Box>
 
-      {message && <Alert severity="success">{message}</Alert>}
-      {error && <Alert severity="error">{error}</Alert>}
+      {message ? <Alert severity="success">{message}</Alert> : null}
+      {error ? <Alert severity="error">{error}</Alert> : null}
 
-      {/* PROFILE HEADER CARD */}
-      <Card sx={{ boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: 3 }}>
-        <CardContent sx={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)', color: 'white', pt: 3, pb: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs="auto">
-              <Badge badgeContent={onboardingComplete ? <CheckCircleIcon sx={{ color: '#22c55e', fontSize: 32 }} /> : null} overlap="circular">
-                <Avatar sx={{ width: 120, height: 120, fontSize: 48, fontWeight: 800, bgcolor: 'rgba(255,255,255,0.3)' }}>
-                  {getInitial()}
-                </Avatar>
-              </Badge>
-            </Grid>
-            <Grid item xs>
-              <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <Box
+          sx={{
+            p: { xs: 2.2, md: 3 },
+            borderRadius: '14px 14px 0 0',
+            background:
+              'radial-gradient(circle at 76% 38%, rgba(16, 185, 129, 0.26) 0%, rgba(16, 185, 129, 0) 45%), linear-gradient(135deg, #101b35 0%, #1a2f56 50%, #1d4e4a 100%)',
+            minHeight: 148,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Chip
+            icon={<VerifiedIcon sx={{ fontSize: 20 }} />}
+            label={provider?.status === 'ACTIVE' ? 'Verified' : 'Pending Verification'}
+            sx={{
+              bgcolor: 'rgba(226, 232, 240, 0.2)',
+              color: '#f8fafc',
+              fontWeight: 700,
+            }}
+          />
+        </Box>
+
+        <CardContent sx={{ p: { xs: 2, md: 2.5 }, pt: 0 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.2}>
+            <Box sx={{ mt: -6, position: 'relative' }}>
+              <Box
+                onClick={handleProfileImagePick}
+                sx={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 3,
+                  border: '6px solid #f8fafc',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  bgcolor: '#12b5a4',
+                  color: '#e6fffb',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 800,
+                  fontSize: 21,
+                }}
+              >
+                {profileImageUrl ? (
+                  <Box
+                    component="img"
+                    src={profileImageUrl}
+                    alt="Profile"
+                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  initials
+                )}
+              </Box>
+              <Box
+                onClick={handleProfileImagePick}
+                sx={{
+                  position: 'absolute',
+                  bottom: -4,
+                  right: -4,
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  bgcolor: '#ffffff',
+                  border: '1px solid #d1d5db',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                }}
+              >
+                <CameraIcon sx={{ fontSize: 18 }} />
+              </Box>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleProfileImageChange}
+                style={{ display: 'none' }}
+              />
+            </Box>
+
+            <Box>
+              <Typography sx={{ fontSize: { xs: 21, md: 25 }, fontWeight: 800, color: '#0f172a' }}>
                 {provider?.name || 'Service Provider'}
               </Typography>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                <Chip
-                  icon={PhoneIcon}
-                  label={provider?.mobile || 'Not set'}
-                  size="small"
-                  sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                />
-                <Chip
-                  label={onboardingComplete ? '✅ Registration Complete' : '⏳ Incomplete'}
-                  size="small"
-                  sx={{
-                    bgcolor: onboardingComplete ? 'rgba(34, 197, 94, 0.3)' : 'rgba(244, 63, 94, 0.3)',
-                    color: 'white',
-                    fontWeight: 600,
-                  }}
+              <Typography sx={{ color: '#64748b', fontSize: 17 }}>{shortLocation}</Typography>
+            </Box>
+          </Stack>
+
+          <Box
+            sx={{
+              mt: 2.2,
+              display: 'grid',
+              gap: 1.5,
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+            }}
+          >
+            {[
+              { icon: <StarIcon sx={{ color: '#0f8f7b' }} />, value: 'N/A', label: 'Reviews' },
+              { icon: <WorkIcon sx={{ color: '#0f8f7b' }} />, value: getExperienceLabel(provider?.experience), label: 'Experience' },
+              { icon: <CheckCircleIcon sx={{ color: '#0f8f7b' }} />, value: provider?.onboardingCompleted ? '100%' : '70%', label: 'Profile completion' },
+              { icon: <RupeeIcon sx={{ color: '#0f8f7b' }} />, value: provider?.status || 'INACTIVE', label: 'Account status' },
+            ].map((item) => (
+              <Box
+                key={`${item.label}-${item.value}`}
+                sx={{
+                  borderRadius: 2.2,
+                  bgcolor: '#f4f6f9',
+                  border: '1px solid #e5e7eb',
+                  px: 2,
+                  py: 1.6,
+                  textAlign: 'center',
+                }}
+              >
+                <Box sx={{ mb: 0.4 }}>{item.icon}</Box>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 19 }}>{item.value}</Typography>
+                <Typography sx={{ color: '#64748b', fontSize: 15 }}>{item.label}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <PersonIcon sx={{ color: '#0f8f7b' }} />
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 18.5 }}>Personal Information</Typography>
+            </Stack>
+            <Button
+              variant="text"
+              startIcon={<EditIcon />}
+              onClick={() => (personalEdit ? handleSavePersonal() : setPersonalEdit(true))}
+              sx={{ color: '#0f172a', textTransform: 'none', fontWeight: 700 }}
+            >
+              {personalEdit ? 'Save' : 'Edit'}
+            </Button>
+          </Stack>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Full Name</Typography>
+              <TextField
+                fullWidth
+                value={personalForm.name}
+                disabled={!personalEdit}
+                onChange={(e) => setPersonalForm((prev) => ({ ...prev, name: e.target.value }))}
+                sx={inputSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Phone</Typography>
+              <TextField fullWidth value={personalForm.mobile} disabled sx={inputSx} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Email</Typography>
+              <TextField
+                fullWidth
+                value={personalForm.email}
+                disabled={!personalEdit}
+                onChange={(e) => setPersonalForm((prev) => ({ ...prev, email: e.target.value }))}
+                sx={inputSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Emergency Contact</Typography>
+              <TextField
+                fullWidth
+                value={personalForm.emergencyContact}
+                disabled={!personalEdit}
+                onChange={(e) =>
+                  setPersonalForm((prev) => ({
+                    ...prev,
+                    emergencyContact: e.target.value.replace(/\D/g, '').slice(0, 10),
+                  }))
+                }
+                sx={inputSx}
+              />
+            </Grid>
+          </Grid>
+
+          {personalEdit ? (
+            <Stack direction="row" justifyContent="flex-end" spacing={1.2} sx={{ mt: 2 }}>
+              <Button variant="outlined" onClick={() => setPersonalEdit(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                onClick={handleSavePersonal}
+                sx={{ textTransform: 'none', borderRadius: 2, background: 'linear-gradient(135deg, #148f7d 0%, #1fb59a 100%)' }}
+              >
+                Save Changes
+              </Button>
+            </Stack>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <WorkIcon sx={{ color: '#0f8f7b' }} />
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 18.5 }}>Professional Information</Typography>
+            </Stack>
+            <Button
+              variant="text"
+              startIcon={<EditIcon />}
+              onClick={() => (professionalEdit ? handleSaveProfessional() : setProfessionalEdit(true))}
+              sx={{ color: '#0f172a', textTransform: 'none', fontWeight: 700 }}
+            >
+              {professionalEdit ? 'Save' : 'Edit'}
+            </Button>
+          </Stack>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth disabled={!professionalEdit}>
+                <InputLabel>Experience</InputLabel>
+                <Select
+                  label="Experience"
+                  value={professionalForm.experience}
+                  onChange={(e) => setProfessionalForm((prev) => ({ ...prev, experience: e.target.value }))}
+                  sx={{ borderRadius: 2, bgcolor: '#f8fafc' }}
+                >
+                  {EXPERIENCE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth disabled={!professionalEdit}>
+                <InputLabel>Marital Status</InputLabel>
+                <Select
+                  label="Marital Status"
+                  value={professionalForm.maritalStatus}
+                  onChange={(e) => setProfessionalForm((prev) => ({ ...prev, maritalStatus: e.target.value }))}
+                  sx={{ borderRadius: 2, bgcolor: '#f8fafc' }}
+                >
+                  {MARITAL_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Referral Name</Typography>
+              <TextField
+                fullWidth
+                value={professionalForm.referralName}
+                disabled={!professionalEdit}
+                onChange={(e) => setProfessionalForm((prev) => ({ ...prev, referralName: e.target.value }))}
+                sx={inputSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ borderRadius: 2, p: 1.4, bgcolor: '#f8fafc', border: '1px solid #e6edf5', minHeight: 56, mt: { xs: 0, md: 3.9 } }}>
+                <Typography sx={{ color: '#334155', fontWeight: 600 }}>Own Vehicle</Typography>
+                <Switch
+                  checked={professionalForm.hasVehicle}
+                  disabled={!professionalEdit}
+                  onChange={(e) => setProfessionalForm((prev) => ({ ...prev, hasVehicle: e.target.checked }))}
                 />
               </Stack>
-              <Typography variant="body2">Member since {formatDate(provider?.createdAt)}</Typography>
             </Grid>
           </Grid>
+
+          {professionalEdit ? (
+            <Stack direction="row" justifyContent="flex-end" spacing={1.2} sx={{ mt: 2 }}>
+              <Button variant="outlined" onClick={() => setProfessionalEdit(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                onClick={handleSaveProfessional}
+                sx={{ textTransform: 'none', borderRadius: 2, background: 'linear-gradient(135deg, #148f7d 0%, #1fb59a 100%)' }}
+              >
+                Save Professional Info
+              </Button>
+            </Stack>
+          ) : null}
         </CardContent>
       </Card>
 
-      {/* SECTION 1: BASIC INFORMATION */}
-      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 2.5 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon /> Basic Information
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <LocationIcon sx={{ color: '#0f8f7b' }} />
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 18.5 }}>Service Area</Typography>
+            </Stack>
+            <Button
+              variant="text"
+              startIcon={<LocationIcon />}
+              onClick={fetchAddress}
+              sx={{ color: '#0f172a', textTransform: 'none', fontWeight: 700 }}
+            >
+              Refresh
+            </Button>
+          </Stack>
 
-          {editMode ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Emergency Contact" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Referral Name" value={form.referralName} onChange={(e) => setForm({ ...form, referralName: e.target.value })} />
-              </Grid>
-              <Grid item xs={12}>
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave}>
-                  Save Changes
-                </Button>
-              </Grid>
-            </Grid>
-          ) : (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Full Name
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {provider?.name || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    <EmailIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                    Email
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {provider?.email || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-
-                    Date of Birth
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {formatDate(provider?.dob)}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Gender
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {genderMap[provider?.gender] || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    <PhoneIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                    Mobile
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {provider?.mobile || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Marital Status
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {maritalStatusMap[provider?.maritalStatus] || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Emergency Contact
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {provider?.emergencyContact || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Referral Name
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {provider?.referralName || 'Not specified'}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          )}
+          <Typography sx={{ color: '#475569', mb: 0.8 }}>Location</Typography>
+          <TextField fullWidth value={shortLocation} disabled sx={inputSx} />
+          {provider?.location?.latitude && provider?.location?.longitude ? (
+            <Typography sx={{ color: '#64748b', mt: 1, fontSize: 14 }}>
+              Coordinates: {provider.location.latitude.toFixed(4)}, {provider.location.longitude.toFixed(4)}
+            </Typography>
+          ) : null}
         </CardContent>
       </Card>
 
-      {/* SECTION 2: PROFESSIONAL DETAILS */}
-      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 2.5 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            💼 Professional Details
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DocumentIcon sx={{ color: '#0f8f7b' }} />
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 18.5 }}>Documents</Typography>
+            </Stack>
+            <Chip
+              label={`${uploadedCount}/${documentItems.length} Uploaded`}
+              sx={{ bgcolor: '#eaf8f3', color: '#0f8f7b', fontWeight: 700 }}
+            />
+          </Stack>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Experience
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                  {experienceMap[provider?.experience] || 'Not specified'}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  <CarIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                  Vehicle
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.5 }}>
-                  {provider?.hasVehicle ? '✅ Own Vehicle Available' : '❌ No Vehicle'}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  💼 Areas of Expertise
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
-                  {provider?.expertise && provider.expertise.length > 0 ? (
-                    provider.expertise.map((exp) => (
-                      <Chip key={exp} label={expertiseMap[exp] || exp} color="primary" variant="outlined" />
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Not specified
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  🎓 Custom Skills
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
-                  {provider?.skills && provider.skills.length > 0 ? (
-                    provider.skills.map((skill) => (
-                      <Chip key={skill} label={skill} variant="outlined" size="small" />
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No custom skills added
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* SECTION 3: DOCUMENTS */}
-      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 2.5 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DocumentIcon /> Documents & Verification
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Grid container spacing={2}>
-            {/* Aadhaar */}
-            <Grid item xs={12} md={4}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  🆔 Aadhaar Card
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  Number: {documents.aadharNumber ? `${documents.aadharNumber.slice(0, 4)}****${documents.aadharNumber.slice(-4)}` : 'Not provided'}
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                  {documents.aadharFrontUrl && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => setSelectedImage({ title: 'Aadhaar Front', url: documents.aadharFrontUrl })}
-                    >
-                      View Front
-                    </Button>
-                  )}
-                  {documents.aadharBackUrl && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => setSelectedImage({ title: 'Aadhaar Back', url: documents.aadharBackUrl })}
-                    >
-                      View Back
-                    </Button>
-                  )}
-                </Stack>
-              </Box>
-            </Grid>
-
-            {/* PAN */}
-            <Grid item xs={12} md={4}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  📋 PAN Card
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  Number: {documents.panNumber || 'Not provided'}
-                </Typography>
-                {documents.panUrl && (
-                  <Button size="small" variant="outlined" onClick={() => setSelectedImage({ title: 'PAN Card', url: documents.panUrl })}>
-                    View Document
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1.6,
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+            }}
+          >
+            {documentItems.map((item) => (
+              <Box
+                key={item.title}
+                sx={{
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: 2.2,
+                  px: 2.2,
+                  py: 1.6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.4,
+                  bgcolor: '#ffffff',
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontWeight: 700, color: '#0f172a', fontSize: 18 }}>{item.title}</Typography>
+                  <Typography sx={{ fontSize: 14.5, color: item.url ? '#1f9d62' : '#94a3b8' }}>
+                    {item.url ? 'Uploaded' : 'Not uploaded'}
+                  </Typography>
+                </Box>
+                {item.url ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    View
                   </Button>
-                )}
+                ) : null}
               </Box>
-            </Grid>
-
-            {/* Cheque */}
-            <Grid item xs={12} md={4}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  💳 Cheque Sample
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  Bank verification document
-                </Typography>
-                {documents.chequeUrl && (
-                  <Button size="small" variant="outlined" onClick={() => setSelectedImage({ title: 'Cheque Sample', url: documents.chequeUrl })}>
-                    View Document
-                  </Button>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
+            ))}
+          </Box>
         </CardContent>
       </Card>
-
-      {/* SECTION 4: LOCATION */}
-      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 2.5 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LocationIcon /> Service Location
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-                <Typography variant="caption" color="text.secondary">
-                  📍 Current Address
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mt: 0.8, lineHeight: 1.6, color: '#1f2937' }}>
-                  {locationAddress}
-                </Typography>
-                {provider?.location?.latitude && provider?.location?.longitude && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    Coordinates: {provider.location.latitude.toFixed(4)}°, {provider.location.longitude.toFixed(4)}°
-                  </Typography>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* SECTION 5: AVAILABILITY */}
-      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 2.5 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ScheduleIcon /> Working Schedule
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  📅 Working Days
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {availability.workingDays && availability.workingDays.length > 0 ? (
-                    availability.workingDays.map((day) => (
-                      <Chip key={day} label={day} color="primary" variant="outlined" size="small" />
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Not specified
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  🕐 Time Slots
-                </Typography>
-                {availability.slots && availability.slots.length > 0 ? (
-                  <Stack spacing={0.8}>
-                    {availability.slots.map((slot, idx) => (
-                      <Typography key={idx} variant="body2" sx={{ fontWeight: 500 }}>
-                        {slot.start} - {slot.end}
-                      </Typography>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    Not specified
-                  </Typography>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* IMAGE PREVIEW DIALOG */}
-      <Dialog open={!!selectedImage} onClose={() => setSelectedImage(null)} maxWidth="sm" fullWidth>
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h6">{selectedImage?.title}</Typography>
-          {selectedImage?.url && (
-            <img src={selectedImage.url} alt="Document" style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }} />
-          )}
-          <Button variant="contained" onClick={() => setSelectedImage(null)}>
-            Close
-          </Button>
-        </Box>
-      </Dialog>
     </Stack>
   );
 }
