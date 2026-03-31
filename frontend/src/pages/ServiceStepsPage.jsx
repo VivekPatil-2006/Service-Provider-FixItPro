@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -11,123 +12,263 @@ import {
   Stack,
   TextField,
   Typography,
-  Alert,
 } from '@mui/material';
-import api from '../services/api';
+import {
+  completeServiceStep,
+  fetchServiceSteps,
+  sendBookingOtp,
+  verifyBookingOtp,
+} from '../services/bookingWorkflowApi';
+
+const formatDuration = (seconds) => {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const secs = safeSeconds % 60;
+
+  return [hours, minutes, secs].map((v) => String(v).padStart(2, '0')).join(':');
+};
+
+const getErrorText = (err, fallback) => err?.response?.data?.message || fallback;
 
 export default function ServiceStepsPage({ bookingId, open, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
   const [steps, setSteps] = useState([]);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stepLoading, setStepLoading] = useState(false);
-  const [otpRequested, setOtpRequested] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [status, setStatus] = useState('in_progress');
+  const [serviceStartTime, setServiceStartTime] = useState(null);
+  const [tick, setTick] = useState(0);
+
+  const [stepLoadingOrder, setStepLoadingOrder] = useState(null);
+
+  const [otpInput, setOtpInput] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [otpSuccess, setOtpSuccess] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [timer, setTimer] = useState(0);
-  const timerRef = useRef(null);
+  const [demoOtp, setDemoOtp] = useState('');
 
-  // Fetch steps and completed steps
   useEffect(() => {
-    if (!bookingId || !open) return;
-    setLoading(true);
-    api.get(`/bookings/${bookingId}/steps`).then(({ data }) => {
-      setSteps(data.steps || []);
-      setCompletedSteps(data.completedSteps || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    if (!open || !bookingId) return;
+
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      setOtpError('');
+      setOtpSuccess('');
+      setOtpInput('');
+      setDemoOtp('');
+
+      try {
+        const data = await fetchServiceSteps(bookingId);
+        if (cancelled) return;
+
+        const ordered = (data.steps || [])
+          .map((step, index) => ({
+            order: Number(step.order) || index + 1,
+            title: step.title || `Step ${index + 1}`,
+            description: step.description || '',
+          }))
+          .sort((a, b) => a.order - b.order);
+
+        setSteps(ordered);
+        setCompletedSteps((data.completedSteps || []).map(Number).sort((a, b) => a - b));
+        setStatus(String(data.status || 'in_progress').toLowerCase());
+        setServiceStartTime(data.serviceStartTime || null);
+      } catch (err) {
+        if (!cancelled) {
+          setError(getErrorText(err, 'Failed to fetch service steps'));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [bookingId, open]);
 
-  // Timer logic (background-safe)
   useEffect(() => {
-    if (!open) return;
-    timerRef.current = setInterval(() => setTimer((t) => t + 1), 1000);
-    return () => clearInterval(timerRef.current);
-  }, [open]);
+    if (!open || !serviceStartTime || status === 'completed') return undefined;
+
+    const interval = setInterval(() => {
+      setTick((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [open, serviceStartTime, status]);
+
+  const elapsedSeconds = useMemo(() => {
+    if (!serviceStartTime) return 0;
+    const start = new Date(serviceStartTime).getTime();
+    if (Number.isNaN(start)) return 0;
+    return Math.floor((Date.now() - start) / 1000);
+  }, [serviceStartTime, tick]);
+
+  const nextExpectedOrder = useMemo(() => {
+    const maxCompleted = completedSteps.length ? completedSteps[completedSteps.length - 1] : 0;
+    return maxCompleted + 1;
+  }, [completedSteps]);
+
+  const allStepsCompleted = steps.length > 0 && completedSteps.length === steps.length;
+  const canCompleteSteps = status === 'in_progress';
+  const canSendOtp = status === 'in_progress' && allStepsCompleted;
+  const canVerifyOtp = status === 'otp_sent' || Boolean(demoOtp);
 
   const handleStepCheck = async (order) => {
-    setStepLoading(true);
-    try {
-      await api.patch(`/bookings/${bookingId}/steps`, { stepOrder: order });
-      setCompletedSteps((prev) => [...prev, order]);
-    } catch {}
-    setStepLoading(false);
-  };
-
-  const handleRequestOtp = async () => {
-    setOtpRequested(false);
+    setStepLoadingOrder(order);
     setOtpError('');
     setOtpSuccess('');
+
     try {
-      await api.post(`/bookings/${bookingId}/request-otp`);
-      setOtpRequested(true);
+      const data = await completeServiceStep(bookingId, order);
+      const updated = (data?.completedSteps || []).map(Number).sort((a, b) => a - b);
+      setCompletedSteps(updated);
     } catch (err) {
-      setOtpError('Failed to request OTP');
+      setOtpError(getErrorText(err, 'Failed to update service step'));
+    } finally {
+      setStepLoadingOrder(null);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setOtpSending(true);
+    setOtpError('');
+    setOtpSuccess('');
+
+    try {
+      const data = await sendBookingOtp(bookingId);
+      setStatus('otp_sent');
+      setDemoOtp(String(data?.otp || '123456'));
+      setOtpSuccess('OTP sent to customer phone (demo mode).');
+    } catch (err) {
+      setOtpError(getErrorText(err, 'Failed to send OTP'));
+    } finally {
+      setOtpSending(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    setVerifying(true);
+    setOtpVerifying(true);
     setOtpError('');
     setOtpSuccess('');
-    try {
-      await api.post(`/bookings/${bookingId}/verify-otp`, { otp });
-      setOtpSuccess('Booking completed!');
-      setTimeout(() => onClose(true), 1200);
-    } catch (err) {
-      setOtpError(err.response?.data?.message || 'Invalid OTP');
-    }
-    setVerifying(false);
-  };
 
-  const allStepsCompleted = steps.length > 0 && completedSteps.length === steps.length;
+    try {
+      await verifyBookingOtp(bookingId, otpInput);
+      setStatus('completed');
+      setOtpSuccess('OTP verified. Booking completed successfully.');
+      setTimeout(() => onClose(true), 1000);
+    } catch (err) {
+      setOtpError(getErrorText(err, 'Invalid OTP'));
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
 
   return (
     <Dialog open={open} onClose={() => onClose(false)} maxWidth="sm" fullWidth>
-      <DialogTitle>Service Steps</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800 }}>Service Workflow</DialogTitle>
       <DialogContent>
         {loading ? (
-          <Stack alignItems="center" sx={{ mt: 4 }}>
+          <Stack alignItems="center" sx={{ py: 4 }}>
             <CircularProgress />
           </Stack>
         ) : (
-          <Stack spacing={2}>
-            {steps.map((step, idx) => (
-              <Box key={step.order} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Checkbox
-                  checked={completedSteps.includes(step.order)}
-                  disabled={completedSteps.includes(step.order) || stepLoading || step.order !== (completedSteps[completedSteps.length - 1] || 0) + 1}
-                  onChange={() => handleStepCheck(step.order)}
-                />
-                <Box>
-                  <Typography fontWeight={700}>{step.title}</Typography>
-                  <Typography variant="body2" color="text.secondary">{step.description}</Typography>
-                </Box>
-              </Box>
-            ))}
-            {allStepsCompleted && !otpRequested && (
-              <Button variant="contained" onClick={handleRequestOtp} disabled={stepLoading}>
-                Request OTP
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {error ? <Alert severity="error">{error}</Alert> : null}
+
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: '#eff6ff' }}>
+              <Typography fontWeight={700}>Service Timer</Typography>
+              <Typography sx={{ mt: 0.4, fontSize: 22, fontWeight: 800, color: '#1d4ed8' }}>
+                {formatDuration(elapsedSeconds)}
+              </Typography>
+            </Box>
+
+            <Typography sx={{ fontWeight: 700 }}>Checklist</Typography>
+            {!steps.length ? (
+              <Alert severity="warning">No service steps configured by admin for this booking.</Alert>
+            ) : (
+              steps.map((step) => {
+                const checked = completedSteps.includes(step.order);
+                const disabled =
+                  !canCompleteSteps ||
+                  checked ||
+                  stepLoadingOrder !== null ||
+                  step.order !== nextExpectedOrder;
+
+                return (
+                  <Box
+                    key={step.order}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                      p: 1.2,
+                      borderRadius: 1.5,
+                      border: '1px solid #e5e7eb',
+                      bgcolor: checked ? '#f0fdf4' : '#fff',
+                    }}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => handleStepCheck(step.order)}
+                    />
+                    <Box>
+                      <Typography fontWeight={700}>{step.title}</Typography>
+                      {step.description ? (
+                        <Typography variant="body2" sx={{ color: '#64748b' }}>
+                          {step.description}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  </Box>
+                );
+              })
+            )}
+
+            {canSendOtp ? (
+              <Button variant="contained" onClick={handleSendOtp} disabled={otpSending}>
+                {otpSending ? 'Sending OTP...' : 'Send OTP'}
               </Button>
-            )}
-            {otpRequested && (
-              <Stack spacing={1}>
-                <Typography>Enter OTP sent to customer (use <b>123456</b>):</Typography>
+            ) : null}
+
+            {canVerifyOtp ? (
+              <Stack spacing={1.2}>
+                {demoOtp ? (
+                  <Alert severity="info">Demo OTP is {demoOtp}</Alert>
+                ) : (
+                  <Alert severity="info">OTP has been sent. Enter the customer OTP to complete.</Alert>
+                )}
                 <TextField
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  label="OTP"
+                  label="Enter OTP"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   inputProps={{ maxLength: 6 }}
-                  disabled={verifying}
+                  placeholder="6-digit OTP"
+                  disabled={otpVerifying || status === 'completed'}
                 />
-                <Button variant="contained" onClick={handleVerifyOtp} disabled={verifying || otp.length !== 6}>
-                  {verifying ? 'Verifying...' : 'Verify OTP & Complete'}
+                <Button
+                  variant="contained"
+                  onClick={handleVerifyOtp}
+                  disabled={otpVerifying || otpInput.length !== 6 || status === 'completed'}
+                >
+                  {otpVerifying ? 'Verifying...' : 'Verify OTP and Complete'}
                 </Button>
-                {otpError && <Alert severity="error">{otpError}</Alert>}
-                {otpSuccess && <Alert severity="success">{otpSuccess}</Alert>}
               </Stack>
-            )}
+            ) : null}
+
+            {otpError ? <Alert severity="error">{otpError}</Alert> : null}
+            {otpSuccess ? <Alert severity="success">{otpSuccess}</Alert> : null}
           </Stack>
         )}
       </DialogContent>

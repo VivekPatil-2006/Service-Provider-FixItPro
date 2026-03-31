@@ -9,6 +9,7 @@ const {
 	updateStepProgress,
 	requestOtp,
 	verifyOtp,
+	cancelBooking,
 } = require('../controllers/bookingController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -23,8 +24,6 @@ router.patch('/:bookingId/start', startService);
 router.patch('/:bookingId/reject', rejectService);
 router.get('/:bookingId/steps', getServiceSteps);
 router.patch('/:bookingId/steps', updateStepProgress);
-
-const { cancelBooking } = require('../controllers/bookingController');
 
 router.post('/:bookingId/request-otp', requestOtp);
 router.post('/:bookingId/verify-otp', verifyOtp);

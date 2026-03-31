@@ -20,6 +20,11 @@ const availabilitySchema = new mongoose.Schema(
       ],
       default: [],
     },
+    status: {
+      type: String,
+      enum: ['AVAILABLE', 'BUSY', 'OFFLINE'],
+      default: 'AVAILABLE',
+    },
   },
   { _id: false }
 );

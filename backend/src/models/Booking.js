@@ -133,6 +133,14 @@ const bookingSchema = new mongoose.Schema(
       type: [Number], // store order/index of completed steps
       default: [],
     },
+    demoOtp: {
+      type: String,
+      default: null,
+    },
+    otpRequestedAt: {
+      type: Date,
+      default: null,
+    },
     payment: {
       type: paymentSchema,
       default: () => ({}),

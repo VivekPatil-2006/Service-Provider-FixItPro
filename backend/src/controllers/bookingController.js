@@ -1,33 +1,88 @@
-// Provider accepts a booking: set status to accepted
-const acceptBooking = asyncHandler(async (req, res) => {
-  const { bookingId } = req.params;
-  const booking = await Booking.findById(bookingId);
-  if (!booking) throw new ApiError(404, 'Booking not found');
-  if (booking.status !== 'assigned') throw new ApiError(400, 'Only assigned bookings can be accepted');
-  booking.status = 'accepted';
-  await booking.save();
-  res.json({ message: 'Booking accepted', booking });
-});
 const Booking = require('../models/Booking');
+const ServiceProvider = require('../models/ServiceProvider');
 require('../models/User');
 require('../models/Product');
 require('../models/Service');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
 
-const toStatus = (value) => String(value || '').trim().toLowerCase();
-const pendingStatuses = ['pending', 'PENDING'];
+const DEMO_OTP = '123456';
+
+const toObjectId = (value) => String(value || '');
 
 const isAssignedToProvider = (booking, providerId) =>
-  booking.providerId && String(booking.providerId) === String(providerId);
+  booking?.providerId && toObjectId(booking.providerId) === toObjectId(providerId);
+
+const getOrderedSteps = (booking) => {
+  const serviceSteps = booking?.serviceId?.steps;
+  const bookingSteps = booking?.serviceSteps;
+  const processMap = booking?.serviceId?.process;
+
+  const processSteps =
+    processMap && typeof processMap === 'object' && !Array.isArray(processMap)
+      ? Object.entries(processMap).map(([title, description], index) => ({
+          order: index + 1,
+          title: String(title || `Step ${index + 1}`),
+          description: String(description || ''),
+        }))
+      : [];
+
+  const rawSteps = Array.isArray(serviceSteps) && serviceSteps.length
+    ? serviceSteps
+    : Array.isArray(bookingSteps) && bookingSteps.length
+      ? bookingSteps
+      : processSteps;
+
+  return rawSteps
+    .map((step, index) => {
+      if (typeof step === 'string') {
+        return {
+          order: index + 1,
+          title: step,
+          description: '',
+        };
+      }
+
+      return {
+        order: Number(step?.order) || index + 1,
+        title: String(step?.title || `Step ${index + 1}`),
+        description: String(step?.description || ''),
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+};
+
+const ensureProviderOwner = (booking, providerId) => {
+  if (!isAssignedToProvider(booking, providerId)) {
+    throw new ApiError(403, 'This booking is not assigned to you');
+  }
+};
+
+const updateProviderStatus = async (providerId, status) => {
+  if (!providerId) return;
+  await ServiceProvider.findByIdAndUpdate(providerId, { $set: { 'availability.status': status } });
+};
+
+// Provider accepts a booking: set status to accepted
+const acceptBooking = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const booking = await Booking.findById(bookingId);
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  ensureProviderOwner(booking, req.provider._id);
+  if (booking.status !== 'assigned') throw new ApiError(400, 'Only assigned bookings can be accepted');
+  booking.status = 'accepted';
+  await booking.save();
+  await updateProviderStatus(req.provider._id, 'BUSY');
+  res.json({ message: 'Booking accepted', booking });
+});
 
 const listBookings = asyncHandler(async (req, res) => {
   const providerId = req.provider._id;
   const bookings = await Booking.find({
     $or: [
       { providerId },
-      { providerId: null, status: { $in: pendingStatuses } },
-      { providerId: { $exists: false }, status: { $in: pendingStatuses } },
+      { providerId: null, status: 'pending' },
+      { providerId: { $exists: false }, status: 'pending' },
     ],
   })
     .populate('serviceId', 'name productId')
@@ -39,30 +94,16 @@ const listBookings = asyncHandler(async (req, res) => {
 
 
 
-// Confirm booking: set status to confirmed
-const confirmBooking = asyncHandler(async (req, res) => {
-  const { bookingId } = req.params;
-  const booking = await Booking.findById(bookingId);
-  if (!booking) throw new ApiError(404, 'Booking not found');
-  if (booking.status !== 'pending') throw new ApiError(400, 'Only pending bookings can be confirmed');
-  booking.status = 'confirmed';
-  await booking.save();
-  res.json({ message: 'Booking confirmed', booking });
-});
-
 // Assign booking: set status to assigned and assign provider
 const assignBooking = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
-  if (booking.status !== 'confirmed') throw new ApiError(400, 'Only confirmed bookings can be assigned');
+  if (booking.status !== 'pending') throw new ApiError(400, 'Only pending bookings can be assigned');
   booking.providerId = req.provider._id;
   booking.status = 'assigned';
   await booking.save();
-  // Set provider availability.status to BUSY
-  req.provider.availability = req.provider.availability || {};
-  req.provider.availability.status = 'BUSY';
-  await req.provider.save();
+  await updateProviderStatus(req.provider._id, 'BUSY');
   res.json({ message: 'Booking assigned', booking });
 });
 
@@ -71,7 +112,8 @@ const startService = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
-  if (booking.status !== 'assigned') throw new ApiError(400, 'Service can only be started after assignment');
+  ensureProviderOwner(booking, req.provider._id);
+  if (booking.status !== 'accepted') throw new ApiError(400, 'Service can only be started after acceptance');
   booking.status = 'in_progress';
   if (!booking.serviceStartTime) booking.serviceStartTime = new Date();
   await booking.save();
@@ -83,8 +125,15 @@ const getServiceSteps = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId).populate('serviceId');
   if (!booking) throw new ApiError(404, 'Booking not found');
-  const steps = booking.serviceId?.steps || [];
-  res.json({ steps, completedSteps: booking.completedSteps });
+  ensureProviderOwner(booking, req.provider._id);
+
+  const steps = getOrderedSteps(booking);
+  res.json({
+    steps,
+    completedSteps: booking.completedSteps || [],
+    status: booking.status,
+    serviceStartTime: booking.serviceStartTime || null,
+  });
 });
 
 // Update step progress (sequential)
@@ -93,15 +142,26 @@ const updateStepProgress = asyncHandler(async (req, res) => {
   const { stepOrder } = req.body;
   const booking = await Booking.findById(bookingId).populate('serviceId');
   if (!booking) throw new ApiError(404, 'Booking not found');
+  ensureProviderOwner(booking, req.provider._id);
   if (booking.status !== 'in_progress') throw new ApiError(400, 'Service must be in progress');
-  const steps = booking.serviceId?.steps || [];
-  if (!steps.some((s) => s.order === stepOrder)) throw new ApiError(400, 'Invalid step');
+  const steps = getOrderedSteps(booking);
+  if (!steps.length) throw new ApiError(400, 'No service steps configured for this booking');
+
+  const targetOrder = Number(stepOrder);
+  if (!targetOrder || !steps.some((s) => s.order === targetOrder)) {
+    throw new ApiError(400, 'Invalid step');
+  }
+
   // Enforce sequential
   const expectedOrder = (booking.completedSteps[booking.completedSteps.length - 1] || 0) + 1;
-  if (stepOrder !== expectedOrder) throw new ApiError(400, 'Steps must be completed in order');
-  booking.completedSteps.push(stepOrder);
+  if (targetOrder !== expectedOrder) throw new ApiError(400, 'Steps must be completed in order');
+  if (booking.completedSteps.includes(targetOrder)) {
+    throw new ApiError(400, 'Step already completed');
+  }
+
+  booking.completedSteps.push(targetOrder);
   await booking.save();
-  res.json({ message: 'Step completed', completedSteps: booking.completedSteps });
+  res.json({ message: 'Step completed', completedSteps: booking.completedSteps, totalSteps: steps.length });
 });
 
 // Dummy OTP logic: always use 123456
@@ -112,9 +172,23 @@ const requestOtp = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId).populate('userId');
   if (!booking) throw new ApiError(404, 'Booking not found');
+  ensureProviderOwner(booking, req.provider._id);
   if (booking.status !== 'in_progress') throw new ApiError(400, 'Service must be in progress');
-  // No real OTP, just pretend to send 123456
-  res.json({ message: 'OTP sent to customer (dummy: 123456)' });
+
+  const bookingWithSteps = await Booking.findById(bookingId).populate('serviceId');
+  const steps = getOrderedSteps(bookingWithSteps);
+  if (!steps.length) throw new ApiError(400, 'No service steps configured for this booking');
+  if ((booking.completedSteps || []).length !== steps.length) {
+    throw new ApiError(400, 'Complete all service steps before sending OTP');
+  }
+
+  booking.status = 'otp_sent';
+  booking.demoOtp = DEMO_OTP;
+  booking.otpRequestedAt = new Date();
+  await booking.save();
+
+  // No real SMS in demo mode; return OTP for local testing.
+  res.json({ message: 'OTP sent to customer (demo mode)', otp: DEMO_OTP, booking });
 });
 
 const verifyOtp = asyncHandler(async (req, res) => {
@@ -122,19 +196,19 @@ const verifyOtp = asyncHandler(async (req, res) => {
   const { otp } = req.body;
   const booking = await Booking.findById(bookingId).populate('userId');
   if (!booking) throw new ApiError(404, 'Booking not found');
-  if (booking.status !== 'in_progress') throw new ApiError(400, 'Service must be in progress');
-  if (otp !== '123456') {
+  ensureProviderOwner(booking, req.provider._id);
+  if (booking.status !== 'otp_sent') throw new ApiError(400, 'OTP must be sent before verification');
+  if (String(otp || '').trim() !== String(booking.demoOtp || DEMO_OTP)) {
     throw new ApiError(400, 'Invalid OTP');
   }
+
   booking.status = 'completed';
   booking.serviceEndTime = new Date();
+  booking.demoOtp = null;
+  booking.otpRequestedAt = null;
   await booking.save();
-  // Set provider availability.status to AVAILABLE
-  const ServiceProvider = require('../models/ServiceProvider');
-  await ServiceProvider.findByIdAndUpdate(
-    booking.providerId,
-    { $set: { 'availability.status': 'AVAILABLE' } }
-  );
+
+  await updateProviderStatus(booking.providerId, 'AVAILABLE');
   res.json({ message: 'Booking completed', booking });
 });
 
@@ -144,9 +218,11 @@ const rejectService = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
+  ensureProviderOwner(booking, req.provider._id);
   if (booking.status !== 'assigned') throw new ApiError(400, 'Only assigned bookings can be rejected');
   booking.status = 'rejected';
   await booking.save();
+  await updateProviderStatus(booking.providerId, 'AVAILABLE');
   res.json({ message: 'Booking rejected', booking });
 });
 
@@ -156,26 +232,20 @@ const cancelBooking = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
+  ensureProviderOwner(booking, req.provider._id);
   if (["completed", "cancelled"].includes(booking.status)) {
     throw new ApiError(400, 'Cannot cancel a completed or already cancelled booking');
   }
   booking.status = 'cancelled';
   booking.serviceEndTime = new Date();
   await booking.save();
-  // Optionally set provider available if assigned
-  if (booking.providerId) {
-    const ServiceProvider = require('../models/ServiceProvider');
-    await ServiceProvider.findByIdAndUpdate(
-      booking.providerId,
-      { $set: { 'availability.status': 'AVAILABLE' } }
-    );
-  }
+
+  await updateProviderStatus(booking.providerId, 'AVAILABLE');
   res.json({ message: 'Booking cancelled', booking });
 });
 
 module.exports = {
   listBookings,
-  confirmBooking,
   assignBooking,
   acceptBooking,
   startService,
