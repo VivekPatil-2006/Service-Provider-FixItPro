@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   InputAdornment,
   Stack,
   TextField,
@@ -23,9 +24,16 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
+import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
+import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
+import NavigationOutlinedIcon from '@mui/icons-material/NavigationOutlined';
+import { useLocation } from 'react-router-dom';
 import {
   acceptBooking,
-  cancelBooking,
   fetchProviderBookings,
   rejectBooking,
   startService,
@@ -33,26 +41,45 @@ import {
 import ServiceStepsPage from './ServiceStepsPage';
 
 const statusTabs = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'assigned', label: 'Assigned' },
-  { key: 'accepted', label: 'Accepted' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'otp_sent', label: 'OTP Sent' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'rejected', label: 'Rejected' },
-  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'all', label: 'All', icon: <AssignmentIndOutlinedIcon fontSize="small" /> },
+  { key: 'assigned', label: 'Assigned', icon: <AssignmentIndOutlinedIcon fontSize="small" /> },
+  { key: 'accepted', label: 'Accepted', icon: <VerifiedUserOutlinedIcon fontSize="small" /> },
+  { key: 'completed', label: 'Completed', icon: <DoneAllOutlinedIcon fontSize="small" /> },
+  { key: 'rejected', label: 'Rejected', icon: <HighlightOffRoundedIcon fontSize="small" /> },
 ];
 
 const statusStyle = {
-  pending: { bgcolor: '#fff7e8', color: '#b45309', border: '1px solid #fcd9a5' },
-  assigned: { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' },
-  accepted: { bgcolor: '#ecfeff', color: '#0e7490', border: '1px solid #bae6fd' },
-  in_progress: { bgcolor: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' },
-  otp_sent: { bgcolor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' },
-  completed: { bgcolor: '#ecfdf3', color: '#15803d', border: '1px solid #bbf7d0' },
-  rejected: { bgcolor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' },
-  cancelled: { bgcolor: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' },
+  pending: { bgcolor: '#fff7e8', color: '#b45309', border: '1.5px solid #fcd9a5' },
+  assigned: { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #bfdbfe' },
+  accepted: { bgcolor: '#ecfeff', color: '#0e7490', border: '1.5px solid #bae6fd' },
+  in_progress: { bgcolor: '#eef2ff', color: '#4338ca', border: '1.5px solid #c7d2fe' },
+  otp_sent: { bgcolor: '#fef3c7', color: '#92400e', border: '1.5px solid #fde68a' },
+  completed: { bgcolor: '#ecfdf3', color: '#15803d', border: '1.5px solid #bbf7d0' },
+  rejected: { bgcolor: '#fef2f2', color: '#b91c1c', border: '1.5px solid #fecaca' },
+  cancelled: { bgcolor: '#f8fafc', color: '#475569', border: '1.5px solid #cbd5e1' },
+};
+
+const statusIconStyle = { fontSize: 18 };
+const statusIcons = {
+  pending: <HourglassEmptyOutlinedIcon sx={{ ...statusIconStyle, color: '#b45309' }} />,
+  assigned: <AssignmentIndOutlinedIcon sx={{ ...statusIconStyle, color: '#1d4ed8' }} />,
+  accepted: <VerifiedUserOutlinedIcon sx={{ ...statusIconStyle, color: '#0e7490' }} />,
+  in_progress: <PlayArrowRoundedIcon sx={{ ...statusIconStyle, color: '#4338ca' }} />,
+  otp_sent: <TaskAltRoundedIcon sx={{ ...statusIconStyle, color: '#92400e' }} />,
+  completed: <DoneAllOutlinedIcon sx={{ ...statusIconStyle, color: '#15803d' }} />,
+  rejected: <HighlightOffRoundedIcon sx={{ ...statusIconStyle, color: '#b91c1c' }} />,
+  cancelled: <CancelOutlinedIcon sx={{ ...statusIconStyle, color: '#475569' }} />,
+};
+
+const statusLabels = {
+  pending: 'Pending Approval',
+  assigned: 'Assigned',
+  accepted: 'Accepted',
+  in_progress: 'In Progress',
+  otp_sent: 'OTP Sent',
+  completed: 'Completed',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
 };
 
 const getErrorText = (err, fallback) => err?.response?.data?.message || fallback;
@@ -134,7 +161,53 @@ const formatDuration = (seconds) => {
   return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':');
 };
 
+const formatDateTime = (value) => {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  return date.toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
+const formatCurrency = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 'Rs 0';
+  return `Rs ${numeric.toLocaleString('en-IN')}`;
+};
+
+const getBookingCoordinates = (booking) => {
+  const bookingCoordinates = booking?.address?.location?.coordinates;
+  const userCoordinates = booking?.userId?.location?.coordinates;
+  const coordinates = Array.isArray(bookingCoordinates) && bookingCoordinates.length >= 2
+    ? bookingCoordinates
+    : userCoordinates;
+
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return { lat, lng };
+};
+
+const buildMapEmbedUrl = (coordinates, mapsApiKey, zoom = 15) => {
+  if (!coordinates || !mapsApiKey) return null;
+  return `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${coordinates.lat},${coordinates.lng}&zoom=${zoom}`;
+};
+
+const getDestinationAddress = (booking) => {
+  if (booking?.address?.fullAddress) return booking.address.fullAddress;
+  if (booking?.customerAddress) return booking.customerAddress;
+  if (booking?.userId?.location?.address) return booking.userId.location.address;
+  return '';
+};
+
 export default function BookingsPage() {
+  const location = useLocation();
+  const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,6 +217,8 @@ export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [actionBookingId, setActionBookingId] = useState('');
+  const [directionsLoadingBookingId, setDirectionsLoadingBookingId] = useState('');
+  const [dialogDirectionsLoading, setDialogDirectionsLoading] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [stepsBookingId, setStepsBookingId] = useState(null);
 
@@ -183,6 +258,27 @@ export default function BookingsPage() {
     loadBookings();
   }, []);
 
+  useEffect(() => {
+    const state = location.state || {};
+    const focusBookingId = String(state.focusBookingId || '').trim();
+    const focusStatus = String(state.focusStatus || '').trim();
+
+    if (!focusBookingId && !focusStatus) return;
+
+    const hasStatus = statusTabs.some((tab) => tab.key === focusStatus);
+    if (hasStatus) {
+      setActiveTab(focusStatus);
+    } else {
+      setActiveTab('all');
+    }
+
+    if (focusBookingId) {
+      setSearchText(focusBookingId);
+      setMessage(`Showing booking results for ${focusBookingId}`);
+      setTimeout(() => setMessage(''), 2500);
+    }
+  }, [location.state]);
+
   const runAction = async (bookingId, action, successText, fallbackError, options = {}) => {
     setActionBookingId(bookingId);
     setError('');
@@ -217,8 +313,60 @@ export default function BookingsPage() {
       { openStepsAfterAction: true }
     );
 
-  const handleCancel = (bookingId) =>
-    runAction(bookingId, () => cancelBooking(bookingId), 'Booking cancelled', 'Failed to cancel booking');
+  const openDirections = (booking, options = {}) => {
+    const { fromDialog = false } = options;
+    if (fromDialog) {
+      setDialogDirectionsLoading(true);
+    } else {
+      setDirectionsLoadingBookingId(String(booking?._id || ''));
+    }
+
+    const destinationCoords = getBookingCoordinates(booking);
+    const destinationAddress = getDestinationAddress(booking);
+
+    const resetLoading = () => {
+      if (fromDialog) {
+        setDialogDirectionsLoading(false);
+      } else {
+        setDirectionsLoadingBookingId('');
+      }
+    };
+
+    if (!destinationCoords && !destinationAddress) {
+      setError('Destination location is not available for this booking');
+      resetLoading();
+      return;
+    }
+
+    const openGoogleMaps = (origin) => {
+      const destination = destinationCoords
+        ? `${destinationCoords.lat},${destinationCoords.lng}`
+        : encodeURIComponent(destinationAddress);
+
+      const baseUrl = 'https://www.google.com/maps/dir/?api=1';
+      const destinationQuery = `destination=${destination}`;
+      const travelModeQuery = 'travelmode=driving';
+      const originQuery = origin ? `&origin=${origin}` : '';
+      window.open(`${baseUrl}&${destinationQuery}${originQuery}&${travelModeQuery}`, '_blank', 'noopener,noreferrer');
+      resetLoading();
+    };
+
+    if (!navigator.geolocation) {
+      openGoogleMaps('');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const origin = `${position.coords.latitude},${position.coords.longitude}`;
+        openGoogleMaps(origin);
+      },
+      () => {
+        openGoogleMaps('');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  };
 
   const normalizedBookings = useMemo(
     () =>
@@ -265,6 +413,7 @@ export default function BookingsPage() {
 
       return [
         booking.displayId,
+        booking._id,
         booking.customerName,
         booking.serviceName,
         booking.addressText,
@@ -320,12 +469,18 @@ export default function BookingsPage() {
             <Button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
+              startIcon={tab.icon}
               sx={{
                 textTransform: 'none',
-                borderRadius: 1.5,
-                fontWeight: active ? 700 : 600,
-                color: '#334155',
+                borderRadius: 2,
+                fontWeight: active ? 800 : 600,
+                color: active ? '#1d4ed8' : '#334155',
                 bgcolor: active ? '#fff' : 'transparent',
+                border: active ? '2px solid #1d4ed8' : '1.5px solid #e2e8f0',
+                boxShadow: active ? '0 2px 8px 0 #e0e7ef' : 'none',
+                px: 2,
+                py: 1,
+                mb: 0.5,
               }}
             >
               {tab.label} ({tabCounts[tab.key] || 0})
@@ -354,24 +509,41 @@ export default function BookingsPage() {
         const canAcceptReject = booking.status === 'assigned';
         const canStart = booking.status === 'accepted';
         const canContinueFlow = ['in_progress', 'otp_sent'].includes(booking.status);
-        const canCancel = !['completed', 'cancelled'].includes(booking.status);
+        const bookingCoordinates = getBookingCoordinates(booking);
+        const bookingPreviewMapUrl = buildMapEmbedUrl(bookingCoordinates, mapsApiKey, 14);
 
         return (
-          <Card key={booking._id} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Card key={booking._id} sx={{ borderRadius: 2, border: '1.5px solid #e2e8f0', boxShadow: '0 2px 8px 0 #f1f5f9', mb: 1 }}>
             <CardContent>
               <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                 <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1.5} alignItems="center" mb={0.5}>
                     <Typography sx={{ color: '#64748b', fontWeight: 700 }}>{booking.displayId}</Typography>
-                    <Chip
-                      label={booking.status.replace('_', ' ')}
-                      size="small"
-                      sx={{ textTransform: 'capitalize', fontWeight: 700, ...statusStyle[booking.status] }}
-                    />
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 1.2,
+                        py: 0.4,
+                        borderRadius: 2,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        ...statusStyle[booking.status],
+                        border: statusStyle[booking.status]?.border,
+                        bgcolor: statusStyle[booking.status]?.bgcolor,
+                        color: statusStyle[booking.status]?.color,
+                        minWidth: 120,
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {statusIcons[booking.status] || null}
+                      {statusLabels[booking.status] || booking.status.replace('_', ' ')}
+                    </Box>
                   </Stack>
 
-                  <Typography sx={{ mt: 1, fontWeight: 800, fontSize: 19 }}>{booking.customerName}</Typography>
-                  <Typography sx={{ color: '#475569' }}>{booking.serviceName}</Typography>
+                  <Typography sx={{ mt: 0.5, fontWeight: 800, fontSize: 19 }}>{booking.customerName}</Typography>
+                  <Typography sx={{ color: '#475569', fontWeight: 600 }}>{booking.serviceName}</Typography>
                   <Typography sx={{ color: '#64748b', fontSize: 14 }}>{booking.scheduleText}</Typography>
                   <Typography sx={{ color: '#64748b', fontSize: 14 }}>{booking.addressText}</Typography>
 
@@ -380,10 +552,37 @@ export default function BookingsPage() {
                       Timer: {booking.elapsedText}
                     </Typography>
                   ) : null}
+
+                  {bookingPreviewMapUrl ? (
+                    <Box sx={{ mt: 1.25 }}>
+                      <Typography sx={{ color: '#334155', fontWeight: 700, fontSize: 13, mb: 0.6 }}>
+                        Location Preview
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: { xs: '100%', md: 320 },
+                          height: 140,
+                          borderRadius: 1.5,
+                          overflow: 'hidden',
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                        }}
+                      >
+                        <Box
+                          component="iframe"
+                          title={`Booking map ${booking.displayId}`}
+                          src={bookingPreviewMapUrl}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          sx={{ width: '100%', height: '100%', border: 0 }}
+                        />
+                      </Box>
+                    </Box>
+                  ) : null}
                 </Box>
 
                 <Stack direction="column" alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={1.1}>
-                  <Typography sx={{ fontWeight: 800, fontSize: 20 }}>Rs {booking.amount}</Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: 20, color: '#0f172a' }}>Rs {booking.amount}</Typography>
 
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {canAcceptReject ? (
@@ -391,7 +590,7 @@ export default function BookingsPage() {
                         onClick={() => handleAccept(booking._id)}
                         disabled={Boolean(actionBookingId)}
                         startIcon={isActionLoading ? <CircularProgress size={14} color="inherit" /> : <CheckCircleOutlineRoundedIcon />}
-                        sx={{ textTransform: 'none', bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' } }}
+                        sx={{ textTransform: 'none', bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, fontWeight: 700 }}
                       >
                         Accept
                       </Button>
@@ -402,7 +601,7 @@ export default function BookingsPage() {
                         onClick={() => handleReject(booking._id)}
                         disabled={Boolean(actionBookingId)}
                         startIcon={isActionLoading ? <CircularProgress size={14} color="inherit" /> : <HighlightOffRoundedIcon />}
-                        sx={{ textTransform: 'none', bgcolor: '#dc2626', color: '#fff', '&:hover': { bgcolor: '#b91c1c' } }}
+                        sx={{ textTransform: 'none', bgcolor: '#dc2626', color: '#fff', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700 }}
                       >
                         Reject
                       </Button>
@@ -413,7 +612,7 @@ export default function BookingsPage() {
                         onClick={() => handleStartService(booking._id)}
                         disabled={Boolean(actionBookingId)}
                         startIcon={isActionLoading ? <CircularProgress size={14} color="inherit" /> : <PlayArrowRoundedIcon />}
-                        sx={{ textTransform: 'none', bgcolor: '#0ea5e9', color: '#fff', '&:hover': { bgcolor: '#0284c7' } }}
+                        sx={{ textTransform: 'none', bgcolor: '#0ea5e9', color: '#fff', '&:hover': { bgcolor: '#0284c7' }, fontWeight: 700 }}
                       >
                         Start Service
                       </Button>
@@ -423,31 +622,33 @@ export default function BookingsPage() {
                       <Button
                         onClick={() => setStepsBookingId(booking._id)}
                         startIcon={<TaskAltRoundedIcon />}
-                        sx={{ textTransform: 'none', bgcolor: '#4338ca', color: '#fff', '&:hover': { bgcolor: '#3730a3' } }}
+                        sx={{ textTransform: 'none', bgcolor: '#4338ca', color: '#fff', '&:hover': { bgcolor: '#3730a3' }, fontWeight: 700 }}
                       >
                         Continue Workflow
-                      </Button>
-                    ) : null}
-
-                    {canCancel ? (
-                      <Button
-                        onClick={() => handleCancel(booking._id)}
-                        disabled={Boolean(actionBookingId)}
-                        sx={{ textTransform: 'none' }}
-                        color="error"
-                        variant="outlined"
-                      >
-                        Cancel
                       </Button>
                     ) : null}
 
                     <Button
                       onClick={() => setSelectedBooking(booking)}
                       startIcon={<VisibilityOutlinedIcon />}
-                      sx={{ textTransform: 'none' }}
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
                       variant="text"
                     >
                       Details
+                    </Button>
+
+                    <Button
+                      onClick={() => openDirections(booking)}
+                      disabled={directionsLoadingBookingId === booking._id}
+                      startIcon={
+                        directionsLoadingBookingId === booking._id
+                          ? <CircularProgress size={14} color="inherit" />
+                          : <NavigationOutlinedIcon />
+                      }
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                      variant="outlined"
+                    >
+                      {directionsLoadingBookingId === booking._id ? 'Opening...' : 'Directions'}
                     </Button>
                   </Stack>
                 </Stack>
@@ -457,32 +658,145 @@ export default function BookingsPage() {
         );
       })}
 
-      <Dialog open={Boolean(selectedBooking)} onClose={() => setSelectedBooking(null)} fullWidth maxWidth="sm">
+      <Dialog open={Boolean(selectedBooking)} onClose={() => setSelectedBooking(null)} fullWidth maxWidth="md">
         <DialogTitle sx={{ fontWeight: 800 }}>Booking Details</DialogTitle>
         <DialogContent>
           {selectedBooking ? (
-            <Stack spacing={1.1} sx={{ pt: 0.5 }}>
-              <Typography>
-                <strong>Booking ID:</strong> {selectedBooking.displayId}
-              </Typography>
-              <Typography>
-                <strong>Status:</strong> {selectedBooking.status}
-              </Typography>
-              <Typography>
-                <strong>Customer:</strong> {selectedBooking.customerName}
-              </Typography>
-              <Typography>
-                <strong>Service:</strong> {selectedBooking.serviceName}
-              </Typography>
-              <Typography>
-                <strong>Schedule:</strong> {selectedBooking.scheduleText}
-              </Typography>
-              <Typography>
-                <strong>Address:</strong> {selectedBooking.addressText}
-              </Typography>
-              <Typography>
-                <strong>Amount:</strong> Rs {selectedBooking.amount}
-              </Typography>
+            <Stack spacing={2} sx={{ pt: 0.5 }}>
+              {(() => {
+                const coordinates = getBookingCoordinates(selectedBooking);
+                const mapUrl = buildMapEmbedUrl(coordinates, mapsApiKey, 15);
+
+                return (
+                  <>
+                    <Stack spacing={1}>
+                      <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Booking Location</Typography>
+                      {mapUrl ? (
+                        <Box
+                          sx={{
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0',
+                            height: { xs: 220, sm: 280 },
+                          }}
+                        >
+                          <Box
+                            component="iframe"
+                            title="Booking location map"
+                            src={mapUrl}
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                            sx={{ width: '100%', height: '100%', border: 0 }}
+                          />
+                        </Box>
+                      ) : (
+                        <Alert severity="info" sx={{ borderRadius: 2 }}>
+                          {!coordinates
+                            ? 'Location coordinates are not available for this booking.'
+                            : 'Google Maps API key is missing. Set VITE_GOOGLE_MAPS_API_KEY in frontend .env.local.'}
+                        </Alert>
+                      )}
+
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <Button
+                          onClick={() => openDirections(selectedBooking, { fromDialog: true })}
+                          disabled={dialogDirectionsLoading}
+                          startIcon={
+                            dialogDirectionsLoading
+                              ? <CircularProgress size={16} color="inherit" />
+                              : <NavigationOutlinedIcon />
+                          }
+                          variant="contained"
+                          sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
+                        >
+                          {dialogDirectionsLoading ? 'Opening Map...' : 'Navigate From My Location'}
+                        </Button>
+                        <Typography sx={{ color: '#64748b', fontSize: 13, alignSelf: 'center' }}>
+                          Uses your current GPS location and opens turn-by-turn route in Google Maps.
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Divider />
+                  </>
+                );
+              })()}
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
+                <Box>
+                  <Typography sx={{ color: '#64748b', fontWeight: 700 }}>Booking ID</Typography>
+                  <Typography sx={{ fontWeight: 800 }}>{selectedBooking.displayId}</Typography>
+                </Box>
+                <Chip
+                  icon={statusIcons[selectedBooking.status] || <AssignmentIndOutlinedIcon fontSize="small" />}
+                  label={statusLabels[selectedBooking.status] || selectedBooking.status}
+                  sx={{
+                    alignSelf: { xs: 'flex-start', sm: 'center' },
+                    fontWeight: 700,
+                    ...statusStyle[selectedBooking.status],
+                  }}
+                />
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Customer Details</Typography>
+                <Typography><strong>Name:</strong> {selectedBooking.customerName}</Typography>
+                <Typography><strong>Mobile:</strong> {selectedBooking?.userId?.mobile || 'Not available'}</Typography>
+                <Typography><strong>Email:</strong> {selectedBooking?.userId?.email || 'Not available'}</Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Service Details</Typography>
+                <Typography><strong>Service:</strong> {selectedBooking.serviceName}</Typography>
+                <Typography><strong>Product:</strong> {selectedBooking?.productId?.name || 'Not available'}</Typography>
+                <Typography><strong>Schedule:</strong> {selectedBooking.scheduleText}</Typography>
+                <Typography><strong>Address:</strong> {selectedBooking.addressText}</Typography>
+                <Typography><strong>Notes:</strong> {selectedBooking?.notes || 'No notes provided'}</Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Provider Details</Typography>
+                <Typography><strong>Name:</strong> {selectedBooking?.providerId?.name || 'Not assigned yet'}</Typography>
+                <Typography><strong>Mobile:</strong> {selectedBooking?.providerId?.mobile || 'Not available'}</Typography>
+                <Typography><strong>Email:</strong> {selectedBooking?.providerId?.email || 'Not available'}</Typography>
+                <Typography><strong>Status:</strong> {selectedBooking?.providerId?.status || 'Not available'}</Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Pricing And Payment</Typography>
+                <Typography><strong>Service Price:</strong> {formatCurrency(selectedBooking?.pricing?.servicePrice)}</Typography>
+                <Typography><strong>Convenience Fee:</strong> {formatCurrency(selectedBooking?.pricing?.convenienceFee)}</Typography>
+                <Typography><strong>Discount:</strong> {formatCurrency(selectedBooking?.pricing?.discount)}</Typography>
+                <Typography><strong>Total:</strong> {formatCurrency(selectedBooking?.pricing?.totalAmount ?? selectedBooking.amount)}</Typography>
+                <Typography><strong>Payment Method:</strong> {selectedBooking?.payment?.method || 'Not available'}</Typography>
+                <Typography><strong>Payment Status:</strong> {selectedBooking?.payment?.status || 'Not available'}</Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Timeline</Typography>
+                <Typography><strong>Created:</strong> {formatDateTime(selectedBooking?.createdAt)}</Typography>
+                <Typography><strong>Service Start:</strong> {formatDateTime(selectedBooking?.serviceStartTime)}</Typography>
+                <Typography><strong>Service End:</strong> {formatDateTime(selectedBooking?.serviceEndTime)}</Typography>
+                <Typography><strong>OTP Requested:</strong> {formatDateTime(selectedBooking?.otpRequestedAt)}</Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Typography sx={{ fontWeight: 800, color: '#0f172a' }}>Rating</Typography>
+                <Typography><strong>Stars:</strong> {selectedBooking?.rating?.stars ?? 'Not rated'}</Typography>
+                <Typography><strong>Review:</strong> {selectedBooking?.rating?.review || 'No review yet'}</Typography>
+              </Stack>
             </Stack>
           ) : null}
         </DialogContent>

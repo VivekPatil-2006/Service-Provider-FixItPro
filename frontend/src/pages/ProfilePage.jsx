@@ -28,6 +28,7 @@ import {
   DescriptionOutlined as DocumentIcon,
   VerifiedUserOutlined as VerifiedIcon,
   CameraAltOutlined as CameraIcon,
+  AccountBalanceOutlined as BankIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -228,7 +229,6 @@ export default function ProfilePage() {
     { title: 'Aadhaar Front', url: documents.aadharFrontUrl },
     { title: 'Aadhaar Back', url: documents.aadharBackUrl },
     { title: 'PAN Card', url: documents.panUrl },
-    { title: 'Cheque Sample', url: documents.chequeUrl },
   ];
 
   const uploadedCount = documentItems.filter((item) => Boolean(item.url)).length;
@@ -379,6 +379,67 @@ export default function ProfilePage() {
           </Box>
         </CardContent>
       </Card>
+      <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <BankIcon sx={{ color: '#0f8f7b' }} />
+            <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: 18.5 }}>Bank Details</Typography>
+          </Stack>
+
+          {provider?.bankDetails ? (
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography sx={{ color: '#475569', mb: 0.8, fontSize: 14, fontWeight: 600 }}>Account Holder Name</Typography>
+                <TextField
+                  fullWidth
+                  value={provider.bankDetails.accountHolderName || ''}
+                  disabled
+                  sx={inputSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography sx={{ color: '#475569', mb: 0.8, fontSize: 14, fontWeight: 600 }}>Bank Name</Typography>
+                <TextField
+                  fullWidth
+                  value={provider.bankDetails.bankName || ''}
+                  disabled
+                  sx={inputSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography sx={{ color: '#475569', mb: 0.8, fontSize: 14, fontWeight: 600 }}>Account Number</Typography>
+                <TextField
+                  fullWidth
+                  value={provider.bankDetails.accountNumber || ''}
+                  disabled
+                  sx={inputSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography sx={{ color: '#475569', mb: 0.8, fontSize: 14, fontWeight: 600 }}>IFSC Code</Typography>
+                <TextField
+                  fullWidth
+                  value={provider.bankDetails.ifscCode || ''}
+                  disabled
+                  sx={inputSx}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography sx={{ color: '#475569', mb: 0.8, fontSize: 14, fontWeight: 600 }}>Branch Name</Typography>
+                <TextField
+                  fullWidth
+                  value={provider.bankDetails.branchName || ''}
+                  disabled
+                  sx={inputSx}
+                />
+              </Grid>
+            </Grid>
+          ) : (
+            <Typography sx={{ color: '#94a3b8' }}>Bank details not added yet</Typography>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Card sx={{ borderRadius: 3.2, border: '1px solid #d6dee8', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
@@ -475,13 +536,13 @@ export default function ProfilePage() {
           </Stack>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Experience</Typography>
               <FormControl fullWidth disabled={!professionalEdit}>
-                <InputLabel>Experience</InputLabel>
                 <Select
-                  label="Experience"
                   value={professionalForm.experience}
                   onChange={(e) => setProfessionalForm((prev) => ({ ...prev, experience: e.target.value }))}
+                  displayEmpty
                   sx={{ borderRadius: 2, bgcolor: '#f8fafc' }}
                 >
                   {EXPERIENCE_OPTIONS.map((option) => (
@@ -492,13 +553,13 @@ export default function ProfilePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Marital Status</Typography>
               <FormControl fullWidth disabled={!professionalEdit}>
-                <InputLabel>Marital Status</InputLabel>
                 <Select
-                  label="Marital Status"
                   value={professionalForm.maritalStatus}
                   onChange={(e) => setProfessionalForm((prev) => ({ ...prev, maritalStatus: e.target.value }))}
+                  displayEmpty
                   sx={{ borderRadius: 2, bgcolor: '#f8fafc' }}
                 >
                   {MARITAL_OPTIONS.map((option) => (
@@ -509,7 +570,7 @@ export default function ProfilePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={4}>
               <Typography sx={{ color: '#475569', mb: 0.8 }}>Referral Name</Typography>
               <TextField
                 fullWidth
@@ -519,9 +580,24 @@ export default function ProfilePage() {
                 sx={inputSx}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ borderRadius: 2, p: 1.4, bgcolor: '#f8fafc', border: '1px solid #e6edf5', minHeight: 56, mt: { xs: 0, md: 3.9 } }}>
-                <Typography sx={{ color: '#334155', fontWeight: 600 }}>Own Vehicle</Typography>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography sx={{ color: '#475569', mb: 0.8 }}>Own Vehicle</Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{
+                  borderRadius: 2,
+                  px: 1.6,
+                  py: 0.9,
+                  bgcolor: '#f8fafc',
+                  border: '1px solid #e6edf5',
+                  minHeight: 56,
+                }}
+              >
+                <Typography sx={{ color: '#334155', fontWeight: 600 }}>
+                  {professionalForm.hasVehicle ? 'Yes' : 'No'}
+                </Typography>
                 <Switch
                   checked={professionalForm.hasVehicle}
                   disabled={!professionalEdit}
@@ -530,6 +606,56 @@ export default function ProfilePage() {
               </Stack>
             </Grid>
           </Grid>
+
+          <Box
+            sx={{
+              mt: 2,
+              p: 1.8,
+              borderRadius: 2.2,
+              border: '1px solid #e6edf5',
+              bgcolor: '#f8fafc',
+            }}
+          >
+            <Typography sx={{ fontWeight: 700, color: '#0f172a', mb: 1.2, fontSize: 16.5 }}>
+              Vehicle Details
+            </Typography>
+
+            {provider?.hasVehicle ? (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Typography sx={{ color: '#475569', mb: 0.6 }}>Vehicle Type</Typography>
+                  <TextField
+                    fullWidth
+                    value={provider?.vehicleDetails?.type || 'Not specified'}
+                    disabled
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography sx={{ color: '#475569', mb: 0.6 }}>Vehicle Model</Typography>
+                  <TextField
+                    fullWidth
+                    value={provider?.vehicleDetails?.model || 'Not specified'}
+                    disabled
+                    sx={inputSx}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography sx={{ color: '#475569', mb: 0.6 }}>Registration Number</Typography>
+                  <TextField
+                    fullWidth
+                    value={provider?.vehicleDetails?.registrationNumber || 'Not specified'}
+                    disabled
+                    sx={inputSx}
+                  />
+                </Grid>
+              </Grid>
+            ) : (
+              <Typography sx={{ color: '#64748b', fontSize: 14.5 }}>
+                No vehicle added for this provider.
+              </Typography>
+            )}
+          </Box>
 
           {professionalEdit ? (
             <Stack direction="row" justifyContent="flex-end" spacing={1.2} sx={{ mt: 2 }}>

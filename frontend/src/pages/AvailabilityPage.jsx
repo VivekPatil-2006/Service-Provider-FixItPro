@@ -114,13 +114,13 @@ const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
     <Card
       sx={{
         borderRadius: 2.5,
-        border: `2px solid ${isValid ? alpha(theme.palette.success.main, 0.3) : alpha(theme.palette.divider, 0.5)}`,
+        border: `1px solid ${isValid ? alpha(theme.palette.primary.main, 0.32) : alpha(theme.palette.divider, 0.7)}`,
         transition: 'all 0.3s ease',
         '&:hover': {
           boxShadow: theme.shadows[4],
           borderColor: theme.palette.primary.main,
         },
-        bgcolor: isValid ? alpha(theme.palette.success.main, 0.05) : 'background.paper',
+        bgcolor: isValid ? alpha(theme.palette.primary.main, 0.04) : 'background.paper',
       }}
     >
       <CardContent sx={{ p: 1.5 }}>
@@ -129,7 +129,7 @@ const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             Slot {index + 1}
           </Typography>
-          {isValid && <CheckCircleIcon sx={{ fontSize: 16, color: theme.palette.success.main, ml: 'auto' }} />}
+          {isValid && <CheckCircleIcon sx={{ fontSize: 16, color: theme.palette.primary.main, ml: 'auto' }} />}
         </Stack>
 
         <Grid container spacing={1} sx={{ mb: 1 }}>
@@ -160,11 +160,11 @@ const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
           <Grid item xs={2} sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
             <IconButton
               size="small"
-              color="error"
               onClick={() => onRemoveSlot(index)}
               sx={{
-                bgcolor: alpha('#ef4444', 0.1),
-                '&:hover': { bgcolor: alpha('#ef4444', 0.2) },
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.dark,
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
               }}
             >
               <DeleteIcon sx={{ fontSize: 18 }} />
@@ -183,9 +183,12 @@ const SlotCard = ({ slot, index, onSlotChange, onRemoveSlot, theme }) => {
             <Chip
               label={duration}
               size="small"
-              color="success"
               variant="outlined"
-              sx={{ fontSize: '0.7rem' }}
+              sx={{
+                fontSize: '0.7rem',
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                color: theme.palette.primary.dark,
+              }}
             />
           </Stack>
         )}
@@ -294,20 +297,20 @@ export default function AvailabilityPage() {
   }, 0) * workingDays.length / 60;
 
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={2}>
       {/* HEADER */}
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
           borderRadius: 3,
           p: { xs: 2, sm: 2.5 },
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
         }}
       >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={2}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.3, letterSpacing: '-0.01em' }}>
-              🕐 Availability & Time Slots
+              Availability Schedule
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Manage your working days and available time slots
@@ -315,10 +318,11 @@ export default function AvailabilityPage() {
           </Box>
           <Box
             sx={{
-              bgcolor: alpha(theme.palette.info.main, 0.12),
-              color: theme.palette.info.main,
+              bgcolor: alpha(theme.palette.primary.main, 0.12),
+              color: theme.palette.primary.dark,
               borderRadius: 2,
               p: 1.5,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               textAlign: 'center',
             }}
           >
@@ -338,8 +342,7 @@ export default function AvailabilityPage() {
           severity="success"
           sx={{
             borderRadius: 2,
-            boxShadow: `0 2px 8px ${alpha('#22c55e', 0.15)}`,
-            backgroundColor: alpha('#22c55e', 0.1),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
           }}
         >
           {message}
@@ -350,8 +353,7 @@ export default function AvailabilityPage() {
           severity="error"
           sx={{
             borderRadius: 2,
-            boxShadow: `0 2px 8px ${alpha('#ef4444', 0.15)}`,
-            backgroundColor: alpha('#ef4444', 0.1),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
           }}
         >
           {error}
@@ -362,7 +364,7 @@ export default function AvailabilityPage() {
       <Card sx={{ borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, fontSize: '1rem' }}>
-            📅 Working Days
+            Working Days
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
             {days.map((day) => (
@@ -405,7 +407,7 @@ export default function AvailabilityPage() {
                 bgcolor: alpha(theme.palette.primary.main, 0.1),
                 '& .MuiLinearProgress-bar': {
                   borderRadius: 3,
-                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
+                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
                 },
               }}
             />
@@ -419,7 +421,7 @@ export default function AvailabilityPage() {
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, fontSize: '1rem' }}>
-                ⏰ Available Time Slots
+                Available Time Slots
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {validSlots.length} valid slot{validSlots.length !== 1 ? 's' : ''}
@@ -439,9 +441,9 @@ export default function AvailabilityPage() {
               sx={{
                 textAlign: 'center',
                 py: 3,
-                bgcolor: alpha(theme.palette.info.main, 0.05),
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
                 borderRadius: 2,
-                border: `1px dashed ${theme.palette.divider}`,
+                border: `1px dashed ${alpha(theme.palette.primary.main, 0.35)}`,
               }}
             >
               <AccessTimeIcon sx={{ fontSize: 40, color: alpha(theme.palette.text.secondary, 0.4), mb: 1 }} />
@@ -468,7 +470,7 @@ export default function AvailabilityPage() {
           <Divider sx={{ my: 2 }} />
 
           {/* ACTION BUTTONS */}
-          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} justifyContent="flex-end">
             <Button variant="text" onClick={resetChanges} disabled={!isDirty || saving} sx={{ borderRadius: 2 }}>
               Reset
             </Button>
@@ -488,7 +490,7 @@ export default function AvailabilityPage() {
               disabled={saving || !isDirty}
               sx={{
                 borderRadius: 2,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
               }}
             >
               {saving ? 'Saving...' : 'Save Availability'}
@@ -501,12 +503,12 @@ export default function AvailabilityPage() {
       {validSlots.length > 0 && (
         <Grid container spacing={1.5}>
           <Grid item xs={12} sm={6}>
-            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.info.main, 0.05) }}>
+            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.06), border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}` }}>
               <CardContent sx={{ p: 1.5 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  📊 Total Hours (Weekly)
+                  Total Hours (Weekly)
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.info.main }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.primary.dark }}>
                   {totalWeeklyHours.toFixed(1)}h
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -517,12 +519,12 @@ export default function AvailabilityPage() {
           </Grid>
 
           <Grid item xs={12} sm={6}>
-            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.success.main, 0.05) }}>
+            <Card sx={{ borderRadius: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.04), border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}` }}>
               <CardContent sx={{ p: 1.5 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  ✅ Valid Slots
+                  Valid Slots
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.primary.dark }}>
                   {validSlots.length}/{slots.length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>

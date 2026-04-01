@@ -227,7 +227,10 @@ const saveLocation = asyncHandler(async (req, res) => {
 });
 
 const listServices = asyncHandler(async (_req, res) => {
-  const services = await Service.find({}).select('name img price duration ratings description').sort({ name: 1 });
+  const services = await Service.find({})
+    .select('productId name img video price duration steps process note ratings description')
+    .populate('productId', 'name slug category description image img tags isActive')
+    .sort({ name: 1 });
   res.json({ services });
 });
 
@@ -295,10 +298,10 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
 
   const [totalBookings, completedBookings, pendingBookings, earningsResult] = await Promise.all([
     Booking.countDocuments({ providerId }),
-    Booking.countDocuments({ providerId, status: 'COMPLETED' }),
-    Booking.countDocuments({ providerId, status: 'PENDING' }),
+    Booking.countDocuments({ providerId, status: 'completed' }),
+    Booking.countDocuments({ providerId, status: 'pending' }),
     Booking.aggregate([
-      { $match: { providerId: req.provider._id, status: 'COMPLETED' } },
+      { $match: { providerId: req.provider._id, status: 'completed' } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]),
   ]);
@@ -327,6 +330,223 @@ const getLocationAddress = asyncHandler(async (req, res) => {
   res.json({ address });
 });
 
+// ============= EARNINGS DASHBOARD ENDPOINTS =============
+
+const getEarningsOverview = asyncHandler(async (req, res) => {
+  const providerId = req.provider._id;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisWeekStart = new Date(now);
+  thisWeekStart.setDate(now.getDate() - now.getDay()); // Start from Sunday
+
+  const [
+    totalEarnings,
+    thisMonthEarnings,
+    thisWeekEarnings,
+    todayEarnings,
+    totalCompleted,
+    totalCancelled,
+    totalRejected,
+    pendingBookings,
+  ] = await Promise.all([
+    // Total earnings
+    Booking.aggregate([
+      { $match: { providerId, status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    // This month earnings
+    Booking.aggregate([
+      { $match: { providerId, status: 'completed', createdAt: { $gte: thisMonth } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    // This week earnings
+    Booking.aggregate([
+      { $match: { providerId, status: 'completed', createdAt: { $gte: thisWeekStart } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    // Today earnings
+    Booking.aggregate([
+      {
+        $match: {
+          providerId,
+          status: 'completed',
+          createdAt: { $gte: today, $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    // Total completed
+    Booking.countDocuments({ providerId, status: 'completed' }),
+    // Total cancelled
+    Booking.countDocuments({ providerId, status: 'cancelled' }),
+    // Total rejected
+    Booking.countDocuments({ providerId, status: 'rejected' }),
+    // Pending bookings
+    Booking.countDocuments({ providerId, status: 'pending' }),
+  ]);
+
+  res.json({
+    earnings: {
+      total: totalEarnings[0]?.total || 0,
+      thisMonth: thisMonthEarnings[0]?.total || 0,
+      thisWeek: thisWeekEarnings[0]?.total || 0,
+      today: todayEarnings[0]?.total || 0,
+    },
+    bookingStats: {
+      completed: totalCompleted,
+      cancelled: totalCancelled,
+      rejected: totalRejected,
+      pending: pendingBookings,
+    },
+  });
+});
+
+const getEarningsTrend = asyncHandler(async (req, res) => {
+  const { period = 'month' } = req.query; // month, week, quarter
+  const providerId = req.provider._id;
+  const now = new Date();
+
+  let startDate;
+  let groupFormat;
+
+  if (period === 'week') {
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - 6);
+    groupFormat = '%Y-%m-%d';
+  } else if (period === 'quarter') {
+    startDate = new Date(now);
+    startDate.setMonth(now.getMonth() - 2);
+    groupFormat = '%Y-%m-%d';
+  } else {
+    // month
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    groupFormat = '%Y-%m-%d';
+  }
+
+  const trend = await Booking.aggregate([
+    { $match: { providerId, status: 'completed', createdAt: { $gte: startDate } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        earnings: { $sum: '$amount' },
+        bookings: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+    {
+      $project: {
+        date: '$_id',
+        earnings: 1,
+        bookings: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  res.json({ trend });
+});
+
+const getRevenueByService = asyncHandler(async (req, res) => {
+  const providerId = req.provider._id;
+
+  const serviceRevenue = await Booking.aggregate([
+    { $match: { providerId, status: 'completed' } },
+    { $sort: { createdAt: -1 } },
+    {
+      $lookup: {
+        from: 'services',
+        localField: 'serviceId',
+        foreignField: '_id',
+        as: 'serviceData',
+      },
+    },
+    { $unwind: { path: '$serviceData', preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: '$serviceData.name',
+        totalRevenue: { $sum: '$amount' },
+        bookings: { $sum: 1 },
+        avgRating: { $avg: '$rating.stars' },
+      },
+    },
+    { $sort: { totalRevenue: -1 } },
+    {
+      $project: {
+        service: '$_id',
+        totalRevenue: 1,
+        bookings: 1,
+        avgRating: { $cond: [{ $eq: ['$avgRating', null] }, 0, '$avgRating'] },
+        _id: 0,
+      },
+    },
+  ]);
+
+  res.json({ serviceRevenue });
+});
+
+const getRevenueByLocation = asyncHandler(async (req, res) => {
+  const providerId = req.provider._id;
+
+  const locationRevenue = await Booking.aggregate([
+    { $match: { providerId, status: 'completed' } },
+    {
+      $group: {
+        _id: '$address.city',
+        totalRevenue: { $sum: '$amount' },
+        bookings: { $sum: 1 },
+      },
+    },
+    { $sort: { totalRevenue: -1 } },
+    {
+      $project: {
+        location: { $cond: [{ $eq: ['$_id', null] }, 'Unknown', '$_id'] },
+        totalRevenue: 1,
+        bookings: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  res.json({ locationRevenue });
+});
+
+const getTransactionHistory = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const providerId = req.provider._id;
+
+  const skip = (page - 1) * limit;
+
+  const [transactions, total] = await Promise.all([
+    Booking.find({ providerId, status: 'completed' })
+      .select('bookingId amount createdAt payment serviceType address rating')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit)),
+    Booking.countDocuments({ providerId, status: 'completed' }),
+  ]);
+
+  const formattedTransactions = transactions.map((booking) => ({
+    id: booking.bookingId,
+    bookingId: booking.bookingId,
+    amount: booking.amount,
+    date: booking.createdAt,
+    method: booking.payment?.method || 'N/A',
+    status: 'paid',
+    rating: booking.rating?.stars || null,
+  }));
+
+  res.json({
+    transactions: formattedTransactions,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
+});
+
 module.exports = {
   getMyProfile,
   listServices,
@@ -339,4 +559,9 @@ module.exports = {
   updateAvailability,
   getDashboardSummary,
   getLocationAddress,
+  getEarningsOverview,
+  getEarningsTrend,
+  getRevenueByService,
+  getRevenueByLocation,
+  getTransactionHistory,
 };

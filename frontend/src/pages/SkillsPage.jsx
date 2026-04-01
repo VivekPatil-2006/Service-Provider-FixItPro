@@ -6,6 +6,11 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   InputAdornment,
   LinearProgress,
   Stack,
@@ -18,6 +23,8 @@ import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -70,6 +77,8 @@ export default function SkillsPage() {
   const [expertise, setExpertise] = useState([]);
   const [skillInput, setSkillInput] = useState('');
   const [skills, setSkills] = useState(provider?.skills || []);
+  const [serviceDetailsMap, setServiceDetailsMap] = useState({});
+  const [activeServiceName, setActiveServiceName] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -98,6 +107,15 @@ export default function SkillsPage() {
         if (names.length) {
           const unique = [...new Set(names)];
           setServiceOptions(unique);
+
+          const nextDetailsMap = {};
+          (data?.services || []).forEach((service) => {
+            const name = String(service?.name || '').trim();
+            if (!name) return;
+            nextDetailsMap[normalizeName(name)] = service;
+          });
+          setServiceDetailsMap(nextDetailsMap);
+
           setExpertise((prev) => normalizeExpertiseFromProvider(provider?.expertise, unique).length ? normalizeExpertiseFromProvider(provider?.expertise, unique) : prev);
         }
       } catch (_err) {
@@ -144,6 +162,37 @@ export default function SkillsPage() {
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   };
+
+  const getServiceSteps = (service) => {
+    const steps = Array.isArray(service?.steps) ? service.steps : [];
+    if (steps.length) {
+      return steps
+        .map((step, index) => ({
+          order: Number(step?.order) || index + 1,
+          title: String(step?.title || `Step ${index + 1}`),
+          description: String(step?.description || ''),
+        }))
+        .sort((a, b) => a.order - b.order);
+    }
+
+    const processMap = service?.process;
+    if (processMap && typeof processMap === 'object' && !Array.isArray(processMap)) {
+      return Object.entries(processMap).map(([title, description], index) => ({
+        order: index + 1,
+        title: String(title || `Step ${index + 1}`),
+        description: String(description || ''),
+      }));
+    }
+
+    return [];
+  };
+
+  const getServiceDetail = (serviceName) => serviceDetailsMap[normalizeName(serviceName)] || null;
+
+  const activeServiceDetail = useMemo(() => {
+    if (!activeServiceName) return null;
+    return getServiceDetail(activeServiceName);
+  }, [activeServiceName, serviceDetailsMap]);
 
   const handleSave = async () => {
     try {
@@ -284,7 +333,7 @@ export default function SkillsPage() {
           return (
             <Card
               key={serviceName}
-              onClick={() => toggleExpertise(serviceName)}
+              onClick={() => setActiveServiceName(serviceName)}
               sx={{
                 borderRadius: 2,
                 border: selected ? '3px solid #14967f' : '2px solid #d6dde6',
@@ -309,15 +358,210 @@ export default function SkillsPage() {
                       </Typography>
                     </Box>
                   </Stack>
-                  {selected ? (
-                    <CheckCircleOutlineRoundedIcon sx={{ color: '#14967f', fontSize: 30 }} />
-                  ) : null}
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityOutlinedIcon />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActiveServiceName(serviceName);
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                      variant="outlined"
+                    >
+                      View
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleExpertise(serviceName);
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                      variant={selected ? 'contained' : 'outlined'}
+                    >
+                      {selected ? 'Selected' : 'Select'}
+                    </Button>
+                    {selected ? (
+                      <CheckCircleOutlineRoundedIcon sx={{ color: '#14967f', fontSize: 28 }} />
+                    ) : null}
+                  </Stack>
                 </Stack>
               </CardContent>
             </Card>
           );
         })}
       </Box>
+
+      <Dialog
+        open={Boolean(activeServiceName)}
+        onClose={() => setActiveServiceName('')}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a' }}>
+          {activeServiceName || 'Service Details'}
+        </DialogTitle>
+        <DialogContent dividers>
+          {activeServiceDetail ? (
+            <Stack spacing={2}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: '#0f172a', mb: 0.8 }}>
+                    Service Image
+                  </Typography>
+                  {activeServiceDetail?.img ? (
+                    <Box
+                      component="img"
+                      src={activeServiceDetail.img}
+                      alt={activeServiceDetail.name || activeServiceName}
+                      sx={{
+                        width: '100%',
+                        height: { xs: 180, md: 210 },
+                        objectFit: 'cover',
+                        borderRadius: 1.8,
+                        border: '1px solid #d6dde6',
+                        bgcolor: '#f8fafc',
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: { xs: 180, md: 210 },
+                        borderRadius: 1.8,
+                        border: '1px dashed #cbd5e1',
+                        bgcolor: '#f8fafc',
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Typography sx={{ color: '#94a3b8' }}>No service image available</Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: '#0f172a', mb: 0.8 }}>
+                    Product Image
+                  </Typography>
+                  {activeServiceDetail?.productId?.image || activeServiceDetail?.productId?.img ? (
+                    <Box
+                      component="img"
+                      src={activeServiceDetail?.productId?.image || activeServiceDetail?.productId?.img}
+                      alt={activeServiceDetail?.productId?.name || 'Product image'}
+                      sx={{
+                        width: '100%',
+                        height: { xs: 180, md: 210 },
+                        objectFit: 'cover',
+                        borderRadius: 1.8,
+                        border: '1px solid #d6dde6',
+                        bgcolor: '#f8fafc',
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: { xs: 180, md: 210 },
+                        borderRadius: 1.8,
+                        border: '1px dashed #cbd5e1',
+                        bgcolor: '#f8fafc',
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Typography sx={{ color: '#94a3b8' }}>No product image available</Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Stack>
+
+              <Divider />
+
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#0f172a' }}>Service Details</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Name:</strong> {activeServiceDetail.name || activeServiceName}</Typography>
+                  <Typography><strong>Price:</strong> Rs {Number(activeServiceDetail.price || 0).toLocaleString('en-IN')}</Typography>
+                  <Typography><strong>Duration:</strong> {activeServiceDetail.duration ? `${activeServiceDetail.duration} mins` : 'Not specified'}</Typography>
+                  <Typography><strong>Ratings:</strong> {Number(activeServiceDetail.ratings || 0).toFixed(1)}</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Description:</strong> {activeServiceDetail.description || 'No description available'}</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Note:</strong> {activeServiceDetail.note || 'No note available'}</Typography>
+                  {activeServiceDetail.video ? (
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
+                      <Typography><strong>Video:</strong></Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        endIcon={<OpenInNewOutlinedIcon />}
+                        onClick={() => window.open(activeServiceDetail.video, '_blank', 'noopener,noreferrer')}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                      >
+                        Open Video
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Typography sx={{ mt: 1 }}><strong>Video:</strong> Not available</Typography>
+                  )}
+                </Box>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#0f172a' }}>Product Details</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Name:</strong> {activeServiceDetail?.productId?.name || 'Not available'}</Typography>
+                  <Typography><strong>Category:</strong> {activeServiceDetail?.productId?.category || 'Not available'}</Typography>
+                  <Typography><strong>Slug:</strong> {activeServiceDetail?.productId?.slug || 'Not available'}</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Description:</strong> {activeServiceDetail?.productId?.description || 'No product description available'}</Typography>
+                  <Typography sx={{ mt: 1 }}><strong>Status:</strong> {activeServiceDetail?.productId?.isActive ? 'Active' : 'Inactive'}</Typography>
+                  <Typography><strong>Tags:</strong> {Array.isArray(activeServiceDetail?.productId?.tags) && activeServiceDetail.productId.tags.length ? activeServiceDetail.productId.tags.join(', ') : 'No tags'}</Typography>
+                </Box>
+              </Stack>
+
+              <Divider />
+
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#0f172a', mb: 1 }}>
+                  Service Steps / Process
+                </Typography>
+                {getServiceSteps(activeServiceDetail).length ? (
+                  <Stack spacing={1}>
+                    {getServiceSteps(activeServiceDetail).map((step) => (
+                      <Box key={`${step.order}-${step.title}`} sx={{ p: 1.2, border: '1px solid #d6dde6', borderRadius: 1.5 }}>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Step {step.order}: {step.title}
+                        </Typography>
+                        <Typography sx={{ color: '#64748b' }}>
+                          {step.description || 'No description'}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography sx={{ color: '#94a3b8' }}>No step details available for this service.</Typography>
+                )}
+              </Box>
+            </Stack>
+          ) : (
+            <Stack spacing={1}>
+              <Typography><strong>Service:</strong> {activeServiceName}</Typography>
+              <Typography sx={{ color: '#64748b' }}>
+                Detailed product/service information is not available for this item yet.
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.2 }}>
+          <Button
+            variant={expertise.includes(activeServiceName) ? 'contained' : 'outlined'}
+            onClick={() => toggleExpertise(activeServiceName)}
+            disabled={!activeServiceName}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            {expertise.includes(activeServiceName) ? 'Selected' : 'Select Service'}
+          </Button>
+          <Button onClick={() => setActiveServiceName('')} sx={{ textTransform: 'none' }}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Box sx={{ mt: 1 }}>
         <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: 18, sm: 24 } }}>

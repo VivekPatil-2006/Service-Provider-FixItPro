@@ -5,6 +5,7 @@ require('../models/Product');
 require('../models/Service');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
+const { createNotification } = require('../services/notificationService');
 
 const DEMO_OTP = '123456';
 
@@ -73,6 +74,19 @@ const acceptBooking = asyncHandler(async (req, res) => {
   booking.status = 'accepted';
   await booking.save();
   await updateProviderStatus(req.provider._id, 'BUSY');
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'Booking Accepted',
+    message: `You accepted booking ${booking.bookingId || booking._id}.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Booking accepted', booking });
 });
 
@@ -85,8 +99,17 @@ const listBookings = asyncHandler(async (req, res) => {
       { providerId: { $exists: false }, status: 'pending' },
     ],
   })
-    .populate('serviceId', 'name productId')
-    .populate('userId', 'name mobile profileImage')
+    .populate({
+      path: 'serviceId',
+      select: 'name productId price duration',
+      populate: {
+        path: 'productId',
+        select: 'name slug category',
+      },
+    })
+    .populate('productId', 'name slug category')
+    .populate('userId', 'name mobile email profileImage location')
+    .populate('providerId', 'name mobile email status')
     .sort({ scheduledDate: 1, createdAt: -1 });
 
   res.json({ bookings });
@@ -104,6 +127,19 @@ const assignBooking = asyncHandler(async (req, res) => {
   booking.status = 'assigned';
   await booking.save();
   await updateProviderStatus(req.provider._id, 'BUSY');
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_ASSIGNED',
+    title: 'Booking Assigned',
+    message: `A new booking ${booking.bookingId || booking._id} is assigned to you.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Booking assigned', booking });
 });
 
@@ -117,6 +153,19 @@ const startService = asyncHandler(async (req, res) => {
   booking.status = 'in_progress';
   if (!booking.serviceStartTime) booking.serviceStartTime = new Date();
   await booking.save();
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'Service Started',
+    message: `Service started for booking ${booking.bookingId || booking._id}.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Service started', booking });
 });
 
@@ -187,6 +236,18 @@ const requestOtp = asyncHandler(async (req, res) => {
   booking.otpRequestedAt = new Date();
   await booking.save();
 
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'OTP Sent',
+    message: `Completion OTP sent for booking ${booking.bookingId || booking._id}.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   // No real SMS in demo mode; return OTP for local testing.
   res.json({ message: 'OTP sent to customer (demo mode)', otp: DEMO_OTP, booking });
 });
@@ -209,6 +270,19 @@ const verifyOtp = asyncHandler(async (req, res) => {
   await booking.save();
 
   await updateProviderStatus(booking.providerId, 'AVAILABLE');
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'Booking Completed',
+    message: `Booking ${booking.bookingId || booking._id} marked as completed.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Booking completed', booking });
 });
 
@@ -223,6 +297,19 @@ const rejectService = asyncHandler(async (req, res) => {
   booking.status = 'rejected';
   await booking.save();
   await updateProviderStatus(booking.providerId, 'AVAILABLE');
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'Booking Rejected',
+    message: `You rejected booking ${booking.bookingId || booking._id}.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Booking rejected', booking });
 });
 
@@ -241,6 +328,19 @@ const cancelBooking = asyncHandler(async (req, res) => {
   await booking.save();
 
   await updateProviderStatus(booking.providerId, 'AVAILABLE');
+
+  await createNotification({
+    providerId: req.provider._id,
+    type: 'BOOKING_UPDATED',
+    title: 'Booking Cancelled',
+    message: `Booking ${booking.bookingId || booking._id} has been cancelled.`,
+    meta: {
+      bookingId: booking.bookingId || String(booking._id),
+      bookingObjectId: booking._id,
+      status: booking.status,
+    },
+  });
+
   res.json({ message: 'Booking cancelled', booking });
 });
 

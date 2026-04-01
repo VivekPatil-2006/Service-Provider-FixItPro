@@ -8,6 +8,9 @@ import BookingsPage from './pages/BookingsPage';
 import ProfilePage from './pages/ProfilePage';
 import SkillsPage from './pages/SkillsPage';
 import AvailabilityPage from './pages/AvailabilityPage';
+import NotificationsPage from './pages/NotificationsPage';
+import SettingsPage from './pages/SettingsPage';
+import HelpPage from './pages/HelpPage';
 import { useAuth } from './context/AuthContext';
 
 function App() {
@@ -38,6 +41,9 @@ function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="skills" element={<SkillsPage />} />
         <Route path="availability" element={<AvailabilityPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="help" element={<HelpPage />} />
       </Route>
       <Route
         path="*"
